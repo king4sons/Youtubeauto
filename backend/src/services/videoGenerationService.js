@@ -9,14 +9,14 @@ class VideoGenerationService {
         name: 'Google Veo 3',
         endpoint: process.env.VEO3_API_ENDPOINT,
         apiKey: process.env.VEO3_API_KEY,
-        maxDuration: 60, // seconds
+        maxDuration: 120, // seconds
         type: 'longform'
       },
       runway: {
         name: 'Runway ML',
         endpoint: process.env.RUNWAY_API_ENDPOINT,
         apiKey: process.env.RUNWAY_API_KEY,
-        maxDuration: 60,
+        maxDuration: 120,
         type: 'longform'
       },
       leonardo: {
@@ -30,21 +30,21 @@ class VideoGenerationService {
         name: 'Synthesia',
         endpoint: process.env.SYNTHESIA_API_ENDPOINT,
         apiKey: process.env.SYNTHESIA_API_KEY,
-        maxDuration: 120,
+        maxDuration: 300,
         type: 'both'
       },
       eleven: {
         name: 'ElevenLabs Voice',
         endpoint: process.env.ELEVEN_API_ENDPOINT,
         apiKey: process.env.ELEVEN_API_KEY,
-        maxDuration: 300,
+        maxDuration: 900, // 15 minutes
         type: 'voiceover'
       },
       descript: {
         name: 'Descript',
         endpoint: process.env.DESCRIPT_API_ENDPOINT,
         apiKey: process.env.DESCRIPT_API_KEY,
-        maxDuration: 300,
+        maxDuration: 900,
         type: 'editing'
       },
       pika: {
@@ -60,6 +60,27 @@ class VideoGenerationService {
         apiKey: process.env.KLING_API_KEY,
         maxDuration: 30,
         type: 'shortform'
+      },
+      heygen: {
+        name: 'HeyGen',
+        endpoint: process.env.HEYGEN_API_ENDPOINT,
+        apiKey: process.env.HEYGEN_API_KEY,
+        maxDuration: 900,
+        type: 'longform'
+      },
+      fliki: {
+        name: 'Fliki.ai',
+        endpoint: process.env.FLIKI_API_ENDPOINT,
+        apiKey: process.env.FLIKI_API_KEY,
+        maxDuration: 900,
+        type: 'longform'
+      },
+      invideo: {
+        name: 'InVideo AI',
+        endpoint: process.env.INVIDEO_API_ENDPOINT,
+        apiKey: process.env.INVIDEO_API_KEY,
+        maxDuration: 900,
+        type: 'longform'
       }
     };
   }
@@ -69,7 +90,7 @@ class VideoGenerationService {
    * @param {Object} params - Generation parameters
    * @param {string} params.prompt - Video description/prompt
    * @param {string} params.provider - AI provider (veo3, runway, leonardo, synthesia, etc.)
-   * @param {string} params.format - Video format (longform, shortform, portrait, landscape)
+   * @param {string} params.format - Video format (longform, shortform, portrait, landscape, extended)
    * @param {number} params.duration - Video duration in seconds
    * @param {string} params.aspectRatio - Aspect ratio (16:9, 9:16, 1:1, etc.)
    * @param {Object} params.style - Style options (cinematic, anime, realistic, etc.)
@@ -97,7 +118,8 @@ class VideoGenerationService {
         createdAt: new Date(),
         metadata: {
           providerName: providerConfig.name,
-          estimatedCompletionTime: this._estimateCompletionTime(provider, duration)
+          estimatedCompletionTime: this._estimateCompletionTime(provider, duration),
+          isExtendedForm: duration > 300
         }
       };
 
@@ -110,7 +132,8 @@ class VideoGenerationService {
         duration: videoData.duration,
         aspectRatio,
         style,
-        generationId: generation._id
+        generationId: generation._id,
+        isExtendedForm: duration > 300
       });
 
       // Update with job ID
@@ -119,7 +142,7 @@ class VideoGenerationService {
       generation.externalJobUrl = jobDetails.externalJobUrl;
       await generation.save();
 
-      logger.info(`Video generation started: ${generation._id} on ${provider}`);
+      logger.info(`Video generation started: ${generation._id} on ${provider} (${videoData.duration}s)`);
 
       return {
         success: true,
@@ -127,7 +150,8 @@ class VideoGenerationService {
         jobId: jobDetails.jobId,
         status: 'processing',
         estimatedTime: videoData.metadata.estimatedCompletionTime,
-        provider: providerConfig.name
+        provider: providerConfig.name,
+        duration: videoData.duration
       };
     } catch (error) {
       logger.error(`Video generation failed: ${error.message}`);
@@ -171,6 +195,140 @@ class VideoGenerationService {
       duration: 60,
       aspectRatio: '16:9'
     });
+  }
+
+  /**
+   * Generate extended/long-form video (10-15 minutes)
+   * Perfect for YouTube, courses, documentaries, vlogs
+   * @param {Object} params - Parameters
+   * @returns {Promise<Object>}
+   */
+  async generateExtendedForm(params) {
+    try {
+      const { 
+        prompt, 
+        duration = 600, // Default 10 minutes
+        style = 'documentary',
+        userId,
+        segments = [],
+        autoGenerateSegments = false,
+        includeVoiceover = false,
+        includeMusic = false,
+        musicGenre = 'cinematic'
+      } = params;
+
+      // Validate duration (10-15 minutes)
+      if (duration < 600 || duration > 900) {
+        throw new Error('Extended form duration must be between 10-15 minutes (600-900 seconds)');
+      }
+
+      // Extended form providers (support longer durations)
+      const extendedFormProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway'];
+      const provider = extendedFormProviders[Math.floor(Math.random() * extendedFormProviders.length)];
+
+      let generatedSegments = segments;
+
+      // Auto-generate segments if not provided
+      if (autoGenerateSegments && (!segments || segments.length === 0)) {
+        generatedSegments = await this._generateVideoSegments(prompt, duration);
+      }
+
+      const videoData = {
+        userId,
+        provider,
+        prompt,
+        format: 'extended',
+        duration,
+        aspectRatio: '16:9',
+        style,
+        status: 'pending',
+        segments: generatedSegments,
+        includeVoiceover,
+        includeMusic,
+        musicGenre,
+        createdAt: new Date(),
+        metadata: {
+          providerName: this.providers[provider].name,
+          estimatedCompletionTime: this._estimateCompletionTime(provider, duration),
+          isExtendedForm: true,
+          totalSegments: generatedSegments.length,
+          durationMinutes: Math.round(duration / 60)
+        }
+      };
+
+      // Save to database
+      const generation = await VideoGeneration.create(videoData);
+
+      // Dispatch to appropriate provider
+      const jobDetails = await this._dispatchToProvider(provider, {
+        prompt,
+        duration,
+        aspectRatio: '16:9',
+        style,
+        generationId: generation._id,
+        isExtendedForm: true,
+        segments: generatedSegments,
+        includeVoiceover,
+        includeMusic,
+        musicGenre
+      });
+
+      // Update with job ID
+      generation.jobId = jobDetails.jobId;
+      generation.status = 'processing';
+      generation.externalJobUrl = jobDetails.externalJobUrl;
+      await generation.save();
+
+      logger.info(`Extended form video generation started: ${generation._id} on ${provider} (${duration}s)`);
+
+      return {
+        success: true,
+        generationId: generation._id,
+        jobId: jobDetails.jobId,
+        status: 'processing',
+        estimatedTime: videoData.metadata.estimatedCompletionTime,
+        provider: this.providers[provider].name,
+        duration: videoData.metadata.durationMinutes,
+        durationUnit: 'minutes',
+        totalSegments: generatedSegments.length,
+        format: 'Extended Form (10-15 minutes)'
+      };
+    } catch (error) {
+      logger.error(`Extended form video generation failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate video segments for extended form content
+   * @private
+   */
+  async _generateVideoSegments(prompt, totalDuration) {
+    try {
+      // Calculate segments (aim for 2-3 minute segments)
+      const segmentDuration = 120; // 2 minutes per segment
+      const numberOfSegments = Math.ceil(totalDuration / segmentDuration);
+
+      // Create segments array
+      const segments = [];
+      for (let i = 0; i < numberOfSegments; i++) {
+        const segmentPrompt = `${prompt} - Part ${i + 1} of ${numberOfSegments}`;
+        segments.push({
+          id: i + 1,
+          title: `Segment ${i + 1}`,
+          prompt: segmentPrompt,
+          duration: Math.min(segmentDuration, totalDuration - (i * segmentDuration)),
+          order: i + 1,
+          status: 'pending'
+        });
+      }
+
+      logger.info(`Generated ${numberOfSegments} video segments`);
+      return segments;
+    } catch (error) {
+      logger.error(`Segment generation failed: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -258,7 +416,9 @@ class VideoGenerationService {
         status: generation.status,
         videoUrl: generation.videoUrl,
         error: generation.error,
-        provider: generation.provider
+        provider: generation.provider,
+        format: generation.format,
+        duration: generation.duration
       };
     } catch (error) {
       logger.error(`Status check failed: ${error.message}`);
@@ -286,6 +446,12 @@ class VideoGenerationService {
         return this._dispatchToPika(params);
       case 'kling':
         return this._dispatchToKling(params);
+      case 'heygen':
+        return this._dispatchToHeyGen(params);
+      case 'fliki':
+        return this._dispatchToFliki(params);
+      case 'invideo':
+        return this._dispatchToInVideo(params);
       default:
         throw new Error(`Dispatch not implemented for ${provider}`);
     }
@@ -331,10 +497,11 @@ class VideoGenerationService {
       const response = await axios.post(
         `${this.providers.runway.endpoint}/v1/tasks`,
         {
-          type: 'gen3',
+          type: params.isExtendedForm ? 'gen3_extended' : 'gen3',
           prompt: params.prompt,
           duration: params.duration,
-          aspect_ratio: params.aspectRatio
+          aspect_ratio: params.aspectRatio,
+          segments: params.segments
         },
         {
           headers: {
@@ -393,17 +560,24 @@ class VideoGenerationService {
       const response = await axios.post(
         `${this.providers.synthesia.endpoint}/v1/videos`,
         {
-          title: 'Generated Video',
+          title: params.isExtendedForm ? `Extended Video - ${params.generationId}` : 'Generated Video',
           test: false,
           visibility: 'private',
-          scenes: [
-            {
-              script: {
-                type: 'text',
-                input: params.prompt
-              }
-            }
-          ]
+          duration: params.duration,
+          scenes: params.isExtendedForm 
+            ? params.segments.map((seg, idx) => ({
+                script: {
+                  type: 'text',
+                  input: seg.prompt
+                },
+                order: idx
+              }))
+            : [{
+                script: {
+                  type: 'text',
+                  input: params.prompt
+                }
+              }]
         },
         {
           headers: {
@@ -484,6 +658,105 @@ class VideoGenerationService {
   }
 
   /**
+   * Dispatch to HeyGen
+   * @private
+   */
+  async _dispatchToHeyGen(params) {
+    try {
+      const response = await axios.post(
+        `${this.providers.heygen.endpoint}/v1/video_talks/generate`,
+        {
+          script: {
+            type: 'text',
+            input: params.prompt
+          },
+          duration: params.duration,
+          avatar_id: 'default',
+          voice_id: 'default'
+        },
+        {
+          headers: {
+            'X-API-Key': this.providers.heygen.apiKey,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return {
+        jobId: response.data.video_id,
+        externalJobUrl: `${this.providers.heygen.endpoint}/videos/${response.data.video_id}`
+      };
+    } catch (error) {
+      throw new Error(`HeyGen dispatch failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Dispatch to Fliki.ai
+   * @private
+   */
+  async _dispatchToFliki(params) {
+    try {
+      const response = await axios.post(
+        `${this.providers.fliki.endpoint}/v1/video`,
+        {
+          script: params.prompt,
+          aspect_ratio: params.aspectRatio === '16:9' ? 'widescreen' : 'portrait',
+          duration: params.duration,
+          background_music: params.includeMusic ? params.musicGenre : 'none'
+        },
+        {
+          headers: {
+            'X-API-Key': this.providers.fliki.apiKey,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return {
+        jobId: response.data.request_id,
+        externalJobUrl: `${this.providers.fliki.endpoint}/api/status/${response.data.request_id}`
+      };
+    } catch (error) {
+      throw new Error(`Fliki dispatch failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Dispatch to InVideo AI
+   * @private
+   */
+  async _dispatchToInVideo(params) {
+    try {
+      const response = await axios.post(
+        `${this.providers.invideo.endpoint}/v1/template/render`,
+        {
+          title: `Video - ${params.generationId}`,
+          description: params.prompt,
+          content: params.prompt,
+          duration: params.duration,
+          template: params.isExtendedForm ? 'long_form' : 'standard',
+          voice_over: params.includeVoiceover,
+          music: params.includeMusic ? params.musicGenre : 'none'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.providers.invideo.apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return {
+        jobId: response.data.render_id,
+        externalJobUrl: `${this.providers.invideo.endpoint}/renders/${response.data.render_id}`
+      };
+    } catch (error) {
+      throw new Error(`InVideo dispatch failed: ${error.message}`);
+    }
+  }
+
+  /**
    * Check provider status
    * @private
    */
@@ -516,17 +789,27 @@ class VideoGenerationService {
    * @private
    */
   _estimateCompletionTime(provider, duration) {
-    const estimates = {
+    const baseTimes = {
       veo3: 120, // 2 minutes
       runway: 180, // 3 minutes
       leonardo: 60, // 1 minute
       synthesia: 150, // 2.5 minutes
       pika: 90, // 1.5 minutes
       kling: 120, // 2 minutes
+      heygen: 300, // 5 minutes
+      fliki: 240, // 4 minutes
+      invideo: 360, // 6 minutes
       eleven: 30 // 30 seconds
     };
 
-    return (estimates[provider] || 120) + (duration ? Math.ceil(duration / 10) * 10 : 0);
+    const baseTime = baseTimes[provider] || 120;
+    
+    // Extended form takes longer
+    if (duration > 300) {
+      return baseTime * 3 + (Math.ceil(duration / 60) * 30);
+    }
+
+    return baseTime + (duration ? Math.ceil(duration / 10) * 10 : 0);
   }
 
   /**
@@ -547,15 +830,29 @@ class VideoGenerationService {
       id: key,
       name: config.name,
       type: config.type,
-      maxDuration: config.maxDuration
+      maxDuration: config.maxDuration,
+      maxDurationMinutes: Math.round(config.maxDuration / 60)
     }));
+  }
+
+  /**
+   * Get extended form providers (supports 10-15 minutes)
+   */
+  getExtendedFormProviders() {
+    const extendedProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway'];
+    return this.getProviders().filter(p => extendedProviders.includes(p.id));
   }
 
   /**
    * Get generation history
    */
-  async getGenerationHistory(userId, limit = 20) {
-    return await VideoGeneration.find({ userId })
+  async getGenerationHistory(userId, limit = 20, format = null) {
+    let query = { userId };
+    if (format) {
+      query.format = format;
+    }
+
+    return await VideoGeneration.find(query)
       .sort({ createdAt: -1 })
       .limit(limit);
   }
