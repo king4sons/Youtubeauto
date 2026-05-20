@@ -108,15 +108,17 @@ router.post('/generate-extended', auth, async (req, res) => {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    if (duration && (duration < 600 || duration > 900)) {
-      return res.status(400).json({ 
-        error: 'Extended form duration must be between 10-15 minutes (600-900 seconds)' 
+    const parsedDuration = duration !== undefined ? parseInt(duration, 10) : undefined;
+
+    if (parsedDuration !== undefined && (isNaN(parsedDuration) || parsedDuration < 600 || parsedDuration > 900)) {
+      return res.status(400).json({
+        error: 'Extended form duration must be between 10-15 minutes (600-900 seconds)'
       });
     }
 
     const result = await videoGenerationService.generateExtendedForm({
       prompt,
-      duration: duration || 600,
+      duration: parsedDuration ?? 600,
       style: style || 'documentary',
       segments: segments || [],
       autoGenerateSegments: autoGenerateSegments !== false,
