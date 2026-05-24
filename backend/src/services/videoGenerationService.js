@@ -81,6 +81,13 @@ class VideoGenerationService {
         apiKey: process.env.INVIDEO_API_KEY,
         maxDuration: 900,
         type: 'longform'
+      },
+      flowkit: {
+        name: 'Flowkit',
+        endpoint: process.env.FLOWKIT_API_ENDPOINT,
+        apiKey: process.env.FLOWKIT_API_KEY,
+        maxDuration: 900,
+        type: 'both'
       }
     };
   }
@@ -223,7 +230,7 @@ class VideoGenerationService {
       }
 
       // Extended form providers (support longer durations)
-      const extendedFormProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway'];
+      const extendedFormProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway', 'flowkit'];
       const provider = extendedFormProviders[Math.floor(Math.random() * extendedFormProviders.length)];
 
       let generatedSegments = segments;
@@ -452,6 +459,8 @@ class VideoGenerationService {
         return this._dispatchToFliki(params);
       case 'invideo':
         return this._dispatchToInVideo(params);
+      case 'flowkit':
+        return this._dispatchToFlowkit(params);
       default:
         throw new Error(`Dispatch not implemented for ${provider}`);
     }
@@ -757,6 +766,40 @@ class VideoGenerationService {
   }
 
   /**
+   * Dispatch to Flowkit
+   * @private
+   */
+  async _dispatchToFlowkit(params) {
+    try {
+      const response = await axios.post(
+        `${this.providers.flowkit.endpoint}/v1/videos/generate`,
+        {
+          prompt: params.prompt,
+          duration: params.duration,
+          aspect_ratio: params.aspectRatio,
+          style: params.style,
+          segments: params.isExtendedForm ? params.segments : undefined,
+          voiceover: params.includeVoiceover,
+          music: params.includeMusic ? params.musicGenre : 'none'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.providers.flowkit.apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return {
+        jobId: response.data.job_id,
+        externalJobUrl: `${this.providers.flowkit.endpoint}/v1/videos/${response.data.job_id}`
+      };
+    } catch (error) {
+      throw new Error(`Flowkit dispatch failed: ${error.message}`);
+    }
+  }
+
+  /**
    * Check provider status
    * @private
    */
@@ -799,7 +842,8 @@ class VideoGenerationService {
       heygen: 300, // 5 minutes
       fliki: 240, // 4 minutes
       invideo: 360, // 6 minutes
-      eleven: 30 // 30 seconds
+      eleven: 30, // 30 seconds
+      flowkit: 180 // 3 minutes
     };
 
     const baseTime = baseTimes[provider] || 120;
@@ -839,7 +883,7 @@ class VideoGenerationService {
    * Get extended form providers (supports 10-15 minutes)
    */
   getExtendedFormProviders() {
-    const extendedProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway'];
+    const extendedProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway', 'flowkit'];
     return this.getProviders().filter(p => extendedProviders.includes(p.id));
   }
 
