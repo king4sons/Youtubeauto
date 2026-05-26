@@ -44,6 +44,17 @@ const VideoGeneration = () => {
     style: 'cinematic'
   });
 
+  // Script-Based State
+  const [scriptData, setScriptData] = useState({
+    title: '',
+    script: '',
+    style: 'cinematic',
+    voiceId: 'default',
+    includeVoiceover: true,
+    includeMusic: true,
+    musicGenre: 'cinematic'
+  });
+
   // Generation History
   const [history, setHistory] = useState([]);
   const [generationStatus, setGenerationStatus] = useState({});
@@ -169,6 +180,56 @@ const VideoGeneration = () => {
     }
   };
 
+  // Generate from Script
+  const handleGenerateFromScript = async (e) => {
+    e.preventDefault();
+    if (!scriptData.script.trim()) {
+      alert('Please paste your script');
+      return;
+    }
+    if (scriptData.script.trim().length < 100) {
+      alert('Script must be at least 100 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/video-generation/generate-from-script', {
+        script: scriptData.script,
+        title: scriptData.title || 'My YouTube Video',
+        style: scriptData.style,
+        voiceId: scriptData.voiceId,
+        includeVoiceover: scriptData.includeVoiceover,
+        includeMusic: scriptData.includeMusic,
+        musicGenre: scriptData.musicGenre
+      });
+
+      alert(
+        `Script-based video generation started!\n` +
+        `Title: ${response.data.title}\n` +
+        `Generation ID: ${response.data.generationId}\n` +
+        `Segments: ${response.data.totalSegments}\n` +
+        `Duration: ${response.data.duration} minutes\n` +
+        `Provider: ${response.data.provider}\n` +
+        `Estimated time: ${response.data.estimatedTime}s`
+      );
+      setScriptData({
+        title: '',
+        script: '',
+        style: 'cinematic',
+        voiceId: 'default',
+        includeVoiceover: true,
+        includeMusic: true,
+        musicGenre: 'cinematic'
+      });
+      fetchHistory();
+    } catch (error) {
+      alert(`Error: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Generate Custom Video
   const handleGenerateCustom = async (e) => {
     e.preventDefault();
@@ -226,7 +287,13 @@ const VideoGeneration = () => {
       <h1>🎬 Video Generation</h1>
 
       <div className="tabs">
-        <button 
+        <button
+          className={`tab ${activeTab === 'script' ? 'active' : ''}`}
+          onClick={() => setActiveTab('script')}
+        >
+          From Script
+        </button>
+        <button
           className={`tab ${activeTab === 'generate' ? 'active' : ''}`}
           onClick={() => setActiveTab('generate')}
         >
@@ -257,6 +324,108 @@ const VideoGeneration = () => {
           History
         </button>
       </div>
+
+      {/* From Script Tab */}
+      {activeTab === 'script' && (
+        <div className="tab-content">
+          <h2>Generate Video from Script</h2>
+          <p className="subtitle">
+            Paste a full screenplay — chapters are auto-parsed into timed segments.
+            Supports format: <code>## 0:00–0:22 — Chapter Title</code>
+          </p>
+
+          <form onSubmit={handleGenerateFromScript}>
+            <div className="form-group">
+              <label>Video Title *</label>
+              <input
+                type="text"
+                value={scriptData.title}
+                onChange={(e) => setScriptData({ ...scriptData, title: e.target.value })}
+                placeholder="He Stole My House. I Gave Him 6 Months..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Full Script *</label>
+              <textarea
+                value={scriptData.script}
+                onChange={(e) => setScriptData({ ...scriptData, script: e.target.value })}
+                placeholder="Paste your full screenplay here. Sections starting with ## 0:00–0:22 — Chapter Title will be parsed as timed segments..."
+                rows="18"
+                style={{ fontFamily: 'monospace', fontSize: '13px' }}
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Style</label>
+                <select
+                  value={scriptData.style}
+                  onChange={(e) => setScriptData({ ...scriptData, style: e.target.value })}
+                >
+                  <option value="cinematic">Cinematic</option>
+                  <option value="documentary">Documentary</option>
+                  <option value="thriller">Thriller</option>
+                  <option value="dramatic">Dramatic</option>
+                  <option value="vlog">Vlog</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Voice (ElevenLabs)</label>
+                <select
+                  value={scriptData.voiceId}
+                  onChange={(e) => setScriptData({ ...scriptData, voiceId: e.target.value })}
+                >
+                  <option value="default">Default</option>
+                  <option value="adam">Adam (deep, authoritative)</option>
+                  <option value="josh">Josh (calm, measured)</option>
+                  <option value="arnold">Arnold (strong, confident)</option>
+                  <option value="sam">Sam (neutral, clear)</option>
+                  <option value="rachel">Rachel (warm, expressive)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Music Genre</label>
+                <select
+                  value={scriptData.musicGenre}
+                  onChange={(e) => setScriptData({ ...scriptData, musicGenre: e.target.value })}
+                >
+                  <option value="cinematic">Cinematic</option>
+                  <option value="tension">Tension</option>
+                  <option value="ambient">Ambient</option>
+                  <option value="epic">Epic</option>
+                  <option value="minimal">Minimal</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={scriptData.includeVoiceover}
+                  onChange={(e) => setScriptData({ ...scriptData, includeVoiceover: e.target.checked })}
+                />
+                Generate AI voiceover from script dialogue
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={scriptData.includeMusic}
+                  onChange={(e) => setScriptData({ ...scriptData, includeMusic: e.target.checked })}
+                />
+                Include background music
+              </label>
+            </div>
+
+            <button type="submit" className="btn-primary btn-large" disabled={loading}>
+              {loading ? 'Parsing & Generating...' : 'Generate Video from Script'}
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Custom Generate Tab */}
       {activeTab === 'generate' && (

@@ -134,6 +134,37 @@ router.post('/generate-extended', auth, async (req, res) => {
 });
 
 /**
+ * @route   POST /api/video-generation/generate-from-script
+ * @desc    Generate extended-form video from a full screenplay
+ * @access  Private
+ */
+router.post('/generate-from-script', auth, async (req, res) => {
+  try {
+    const { script, title, style, voiceId, includeVoiceover, includeMusic, musicGenre } = req.body;
+
+    if (!script || script.trim().length < 100) {
+      return res.status(400).json({ error: 'A valid script is required (minimum 100 characters)' });
+    }
+
+    const result = await videoGenerationService.generateFromScript({
+      script,
+      title: title || 'My YouTube Video',
+      style: style || 'cinematic',
+      voiceId: voiceId || 'default',
+      includeVoiceover: includeVoiceover !== false,
+      includeMusic: includeMusic !== false,
+      musicGenre: musicGenre || 'cinematic',
+      userId: req.user.id
+    });
+
+    res.json(result);
+  } catch (error) {
+    logger.error(`Generate from script error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * @route   POST /api/video-generation/voiceover
  * @desc    Generate voiceover
  * @access  Private

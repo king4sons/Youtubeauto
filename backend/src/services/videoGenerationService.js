@@ -844,6 +844,162 @@ class VideoGenerationService {
   }
 
   /**
+   * Generate video from a full screenplay/script
+   * Parses chapter timestamps into segments and dispatches as extended form
+   * @param {Object} params
+   * @param {string} params.script - Full screenplay text
+   * @param {string} params.title - Video title
+   * @param {string} params.style - Visual style
+   * @param {string} params.voiceId - ElevenLabs voice ID
+   * @param {boolean} params.includeVoiceover - Whether to generate voiceover
+   * @param {boolean} params.includeMusic - Whether to include background music
+   * @param {string} params.musicGenre - Music genre
+   * @param {string} params.userId
+   * @returns {Promise<Object>}
+   */
+  async generateFromScript(params) {
+    try {
+      const {
+        script,
+        title = 'Generated Video',
+        style = 'cinematic',
+        userId,
+        voiceId = 'default',
+        includeVoiceover = true,
+        includeMusic = true,
+        musicGenre = 'cinematic'
+      } = params;
+
+      const { segments, totalDuration } = this._parseScript(script);
+
+      if (segments.length === 0) {
+        throw new Error('Could not parse any segments from the script. Ensure sections use the format: ## 0:00–0:22 — Chapter Title');
+      }
+
+      // Clamp to extended form range (10–15 min)
+      const duration = Math.min(Math.max(totalDuration, 600), 900);
+
+      const extendedFormProviders = ['synthesia', 'heygen', 'fliki', 'invideo'];
+      const provider = extendedFormProviders[Math.floor(Math.random() * extendedFormProviders.length)];
+
+      const videoData = {
+        userId,
+        provider,
+        prompt: title,
+        format: 'extended',
+        duration,
+        aspectRatio: '16:9',
+        style,
+        status: 'pending',
+        segments,
+        includeVoiceover,
+        includeMusic,
+        musicGenre,
+        createdAt: new Date(),
+        metadata: {
+          providerName: this.providers[provider].name,
+          estimatedCompletionTime: this._estimateCompletionTime(provider, duration),
+          isExtendedForm: true,
+          isScriptBased: true,
+          totalSegments: segments.length,
+          durationMinutes: Math.round(duration / 60),
+          title
+        }
+      };
+
+      const generation = await VideoGeneration.create(videoData);
+
+      const jobDetails = await this._dispatchToProvider(provider, {
+        prompt: title,
+        duration,
+        aspectRatio: '16:9',
+        style,
+        generationId: generation._id,
+        isExtendedForm: true,
+        segments,
+        includeVoiceover,
+        includeMusic,
+        musicGenre,
+        voiceId
+      });
+
+      generation.jobId = jobDetails.jobId;
+      generation.status = 'processing';
+      generation.externalJobUrl = jobDetails.externalJobUrl;
+      await generation.save();
+
+      logger.info(`Script-based video started: ${generation._id} on ${provider} (${duration}s, ${segments.length} segments)`);
+
+      return {
+        success: true,
+        generationId: generation._id,
+        jobId: jobDetails.jobId,
+        status: 'processing',
+        estimatedTime: videoData.metadata.estimatedCompletionTime,
+        provider: this.providers[provider].name,
+        duration: videoData.metadata.durationMinutes,
+        durationUnit: 'minutes',
+        totalSegments: segments.length,
+        format: 'Script-Based Extended Form',
+        title
+      };
+    } catch (error) {
+      logger.error(`Script-based video generation failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Parse a screenplay into timed segments
+   * Handles headers of the form: ## 0:00–0:22 — Chapter Title
+   * @private
+   */
+  _parseScript(script) {
+    const segments = [];
+    // Match: ## M:SS–M:SS — Title  (supports – en-dash, — em-dash, or plain -)
+    const sectionRegex = /##\s+(\d+):(\d+)\s*[–—-]+\s*(\d+):(\d+)\s*[—–-]+\s*(.+)/g;
+    const matches = [...script.matchAll(sectionRegex)];
+
+    for (let i = 0; i < matches.length; i++) {
+      const m = matches[i];
+      const startSec = parseInt(m[1]) * 60 + parseInt(m[2]);
+      const endSec   = parseInt(m[3]) * 60 + parseInt(m[4]);
+      const chapterTitle = m[5].trim();
+
+      const contentStart = m.index + m[0].length;
+      const contentEnd   = i < matches.length - 1 ? matches[i + 1].index : script.length;
+      const rawContent   = script.slice(contentStart, contentEnd);
+
+      const visualMatch = rawContent.match(/\*\*Visual:\*\*\s*(.+)/);
+      const musicMatch  = rawContent.match(/\*\*Music:\*\*\s*(.+)/);
+
+      const dialogue = rawContent
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('**') && !l.startsWith('#') && l !== '***')
+        .join(' ')
+        .trim();
+
+      segments.push({
+        id: i + 1,
+        title: chapterTitle,
+        prompt: `${chapterTitle}: ${dialogue.slice(0, 500)}`,
+        dialogue,
+        visualDirection: visualMatch ? visualMatch[1].trim() : '',
+        musicDirection: musicMatch  ? musicMatch[1].trim()  : '',
+        startTime: startSec,
+        endTime: endSec,
+        duration: endSec - startSec,
+        order: i + 1,
+        status: 'pending'
+      });
+    }
+
+    const totalDuration = segments.length > 0 ? segments[segments.length - 1].endTime : 0;
+    return { segments, totalDuration };
+  }
+
+  /**
    * Get generation history
    */
   async getGenerationHistory(userId, limit = 20, format = null) {
