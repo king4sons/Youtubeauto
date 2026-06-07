@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 import {
   FiGrid, FiFolder, FiFileText, FiFilm, FiVideo,
   FiMic, FiEdit3, FiSend, FiBarChart2, FiLogOut,
-  FiZap, FiChevronLeft, FiChevronRight
+  FiZap, FiChevronLeft, FiChevronRight, FiActivity
 } from 'react-icons/fi'
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/scripts', icon: FiFileText, label: 'Script Agent' },
   { to: '/storyboard', icon: FiFilm, label: 'Storyboard' },
   { to: '/videos', icon: FiVideo, label: 'Video Pipeline' },
+  { to: '/workflow', icon: FiActivity, label: 'AI Workflow' },
   { to: '/voiceover', icon: FiMic, label: 'Voiceover' },
   { to: '/editor', icon: FiEdit3, label: 'Editor' },
   { to: '/publishing', icon: FiSend, label: 'Publishing' },

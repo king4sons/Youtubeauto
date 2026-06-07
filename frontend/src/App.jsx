@@ -13,6 +13,7 @@ import VoiceoverStudio from './pages/VoiceoverStudio'
 import VideoEditor from './pages/VideoEditor'
 import Publishing from './pages/Publishing'
 import Analytics from './pages/Analytics'
+import Workflow from './pages/Workflow'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuthStore()
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="scripts" element={<ScriptGenerator />} />
         <Route path="storyboard" element={<StoryboardPage />} />
         <Route path="videos" element={<VideoGenerator />} />
+        <Route path="workflow" element={<Workflow />} />
         <Route path="voiceover" element={<VoiceoverStudio />} />
         <Route path="editor" element={<VideoEditor />} />
         <Route path="publishing" element={<Publishing />} />
