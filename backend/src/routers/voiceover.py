@@ -13,12 +13,18 @@ from ..config import settings
 router = APIRouter(prefix="/voiceover", tags=["voiceover"])
 
 AVAILABLE_VOICES = [
-    {"id": "male_deep", "name": "Marcus", "gender": "male", "style": "deep, authoritative", "preview_text": "Perfect for cinematic narration"},
-    {"id": "female_warm", "name": "Aria", "gender": "female", "style": "warm, engaging", "preview_text": "Ideal for documentary style"},
-    {"id": "male_dramatic", "name": "Viktor", "gender": "male", "style": "dramatic, intense", "preview_text": "Built for thriller content"},
-    {"id": "female_crisp", "name": "Nova", "gender": "female", "style": "crisp, professional", "preview_text": "Great for news-style delivery"},
-    {"id": "male_storyteller", "name": "Caspian", "gender": "male", "style": "storyteller, rich", "preview_text": "Classic narrator voice"},
-    {"id": "female_ethereal", "name": "Seraph", "gender": "female", "style": "ethereal, mysterious", "preview_text": "Perfect for supernatural content"},
+    # ElevenLabs voices
+    {"id": "el_sarah", "name": "Sarah", "provider": "elevenlabs", "gender": "female", "style": "warm, conversational", "preview_text": "Perfect for emotional narratives", "el_voice_id": "EXAVITQu4vr4xnSDxMaL"},
+    {"id": "el_rachel", "name": "Rachel", "provider": "elevenlabs", "gender": "female", "style": "calm, professional", "preview_text": "Ideal for documentary style", "el_voice_id": "21m00Tcm4TlvDq8ikWAM"},
+    {"id": "el_josh", "name": "Josh", "provider": "elevenlabs", "gender": "male", "style": "deep, authoritative", "preview_text": "Built for thriller narration", "el_voice_id": "TxGEqnHWrfWFTfGW9XjX"},
+    {"id": "el_arnold", "name": "Arnold", "provider": "elevenlabs", "gender": "male", "style": "crisp, narrative", "preview_text": "Classic storyteller voice", "el_voice_id": "VR6AewLTigWG4xSOukaG"},
+    # Studio voices
+    {"id": "male_deep", "name": "Marcus", "provider": "studio", "gender": "male", "style": "deep, authoritative", "preview_text": "Perfect for cinematic narration", "el_voice_id": None},
+    {"id": "female_warm", "name": "Aria", "provider": "studio", "gender": "female", "style": "warm, engaging", "preview_text": "Ideal for documentary style", "el_voice_id": None},
+    {"id": "male_dramatic", "name": "Viktor", "provider": "studio", "gender": "male", "style": "dramatic, intense", "preview_text": "Built for thriller content", "el_voice_id": None},
+    {"id": "female_crisp", "name": "Nova", "provider": "studio", "gender": "female", "style": "crisp, professional", "preview_text": "Great for news-style delivery", "el_voice_id": None},
+    {"id": "male_storyteller", "name": "Caspian", "provider": "studio", "gender": "male", "style": "storyteller, rich", "preview_text": "Classic narrator voice", "el_voice_id": None},
+    {"id": "female_ethereal", "name": "Seraph", "provider": "studio", "gender": "female", "style": "ethereal, mysterious", "preview_text": "Perfect for supernatural content", "el_voice_id": None},
 ]
 
 class VoiceoverRequest(BaseModel):
