@@ -14,6 +14,7 @@ import VideoEditor from './pages/VideoEditor'
 import Publishing from './pages/Publishing'
 import Analytics from './pages/Analytics'
 import Workflow from './pages/Workflow'
+import Settings from './pages/Settings'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuthStore()
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="editor" element={<VideoEditor />} />
         <Route path="publishing" element={<Publishing />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   )

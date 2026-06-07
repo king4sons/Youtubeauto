@@ -15,6 +15,7 @@ from src.routers.thumbnails import router as thumbnails_router
 from src.routers.publishing import router as publishing_router
 from src.routers.analytics import router as analytics_router
 from src.routers.providers import router as providers_router
+from src.routers.settings import router as settings_router
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
@@ -51,6 +52,7 @@ app.include_router(thumbnails_router, prefix="/api/v1")
 app.include_router(publishing_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(providers_router, prefix="/api/v1")
+app.include_router(settings_router, prefix="/api/v1")
 
 @app.get("/")
 def root():

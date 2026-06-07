@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 import {
   FiGrid, FiFolder, FiFileText, FiFilm, FiVideo,
   FiMic, FiEdit3, FiSend, FiBarChart2, FiLogOut,
-  FiZap, FiChevronLeft, FiChevronRight, FiActivity
+  FiZap, FiChevronLeft, FiChevronRight, FiActivity, FiKey
 } from 'react-icons/fi'
 
 const navItems = [
@@ -18,6 +18,7 @@ const navItems = [
   { to: '/editor', icon: FiEdit3, label: 'Editor' },
   { to: '/publishing', icon: FiSend, label: 'Publishing' },
   { to: '/analytics', icon: FiBarChart2, label: 'Analytics' },
+  { to: '/settings', icon: FiKey, label: 'API Settings' },
 ]
 
 export default function Sidebar({ open, setOpen }) {

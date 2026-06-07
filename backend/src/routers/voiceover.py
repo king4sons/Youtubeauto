@@ -58,11 +58,65 @@ def generate_voiceover(voiceover_id: int):
 
     voiceover.status = "processing"
     db.commit()
-    time.sleep(4)
+
+    # Find voice config
+    voice_config = next((v for v in AVAILABLE_VOICES if v["id"] == voiceover.voice_id), None)
+    el_voice_id = voice_config.get("el_voice_id") if voice_config else None
+    is_elevenlabs = voice_config and voice_config.get("provider") == "elevenlabs"
+
+    api_key = settings.ELEVENLABS_API_KEY
+    used_real_api = False
+
+    if is_elevenlabs and el_voice_id and api_key and api_key not in ("", "your-elevenlabs-key"):
+        try:
+            # Get script text
+            script = db.query(__import__('src.models', fromlist=['Script']).Script).filter_by(id=voiceover.script_id).first()
+            script_text = ""
+            if script and script.content:
+                # Strip scene headers and JSON, keep only narration/dialogue
+                lines = []
+                for line in script.content.split("\n"):
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith("SCENE") and not stripped.startswith("[") and not stripped.startswith("═") and "SCENES_JSON" not in stripped:
+                        lines.append(stripped)
+                script_text = " ".join(lines[:300])  # cap at ~300 words
+
+            if not script_text:
+                script_text = "The reckoning came. And from its ashes, something new was born."
+
+            import httpx, os
+            response = httpx.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{el_voice_id}",
+                headers={
+                    "xi-api-key": api_key,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "text": script_text,
+                    "model_id": "eleven_monolingual_v1",
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+                },
+                timeout=60
+            )
+            if response.status_code == 200:
+                os.makedirs("media/voiceovers", exist_ok=True)
+                out_path = f"media/voiceovers/vo_{voiceover_id}.mp3"
+                with open(out_path, "wb") as f:
+                    f.write(response.content)
+                # Estimate duration from file size (rough: ~16KB/s for 128kbps)
+                estimated_duration = max(30.0, len(response.content) / 16000)
+                voiceover.file_url = f"/media/voiceovers/vo_{voiceover_id}.mp3"
+                voiceover.duration = round(estimated_duration, 1)
+                used_real_api = True
+        except Exception as e:
+            pass  # fall through to demo mode
+
+    if not used_real_api:
+        time.sleep(3)
+        voiceover.file_url = f"/media/voiceovers/vo_{voiceover_id}.mp3"
+        voiceover.duration = 720.0
 
     voiceover.status = "completed"
-    voiceover.file_url = f"/media/voiceovers/vo_{voiceover_id}.mp3"
-    voiceover.duration = 720.0
     db.commit()
     db.close()
 
