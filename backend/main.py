@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 
 from src.database import engine, Base
@@ -32,7 +33,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,10 +55,27 @@ app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(providers_router, prefix="/api/v1")
 app.include_router(settings_router, prefix="/api/v1")
 
-@app.get("/")
-def root():
-    return {"message": "Reckoning Studio API", "version": "1.0.0", "status": "running"}
+# Serve built frontend (if dist/ exists next to backend)
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="frontend-assets")
 
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
+    @app.get("/health")
+    def health():
+        return {"status": "healthy"}
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        # API routes are handled above; everything else goes to index.html
+        if full_path.startswith("api/") or full_path.startswith("media/"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {"message": "Reckoning Studio API", "version": "1.0.0", "status": "running"}
+
+    @app.get("/health")
+    def health():
+        return {"status": "healthy"}
