@@ -26,7 +26,22 @@ Your scripts are:
 - Structured for maximum saves and shares (people bookmark actionable content)
 - Written for SHORT-FORM first (TikTok, Reels, Shorts) then adapted for long-form
 
-You think like Gary Vee's research + Alex Hormozi's specificity + @sina.growthtech's authenticity.`
+You think like Gary Vee's research + Alex Hormozi's specificity + @sina.growthtech's authenticity.`,
+
+  ai_education: `You are the Script Writer for Reckoning Studio AI — an AI education specialist who writes
+in the live-demo, show-don't-tell style of @kevin.dink.ai and top AI educators on TikTok.
+
+Your scripts are:
+- Enthusiastic but grounded — excited about a real result you just achieved
+- Structured around DEMONSTRATION: show the result first, then explain how
+- Packed with specific tool names, prices, commands, and workflow steps
+- Optimized for saves — every line must be worth writing down or bookmarking
+- Written as if you're a friend who just discovered something incredible and can't wait to share
+- Screen-recording aware: narrate what's on screen with precise visual cues
+- [SCREEN: what to show] cues for every major visual moment
+
+Your viral signature: the near 1:1 save-to-like ratio of reference-worthy tutorial content.
+You think like Kevin Dink AI building live + MrBeast's visual pacing + Ali Abdaal's actionable teaching.`
 };
 
 class ScriptAgent extends BaseAgent {
@@ -52,9 +67,9 @@ class ScriptAgent extends BaseAgent {
       ? `Past viral hooks that worked:\n${viralHooks.map(h => `"${h.content.hook}"`).join('\n')}`
       : '';
 
-    // Get creator-modeled strategy for GrowthTech niche
+    // Get creator-modeled strategy for creator-modeled niches
     let creatorStrategy = null;
-    if (niche === 'growth_tech') {
+    if (niche === 'growth_tech' || niche === 'ai_education') {
       creatorStrategy = await creatorIntelligence.generateCreatorModeledStrategy(
         project.concept, niche, project.targetDuration
       );
@@ -65,11 +80,14 @@ class ScriptAgent extends BaseAgent {
       ? `PREVIOUS ATTEMPT FAILED VIRAL GATE. IMPROVEMENTS REQUIRED:\n${JSON.stringify(viralFeedback, null, 2)}`
       : '';
 
-    const isGrowthTech = niche === 'growth_tech';
-
-    const prompt = isGrowthTech
-      ? this._buildGrowthTechPrompt(project, researchData, trendData, creatorStrategy, hooksContext, feedbackContext, durationMinutes)
-      : this._buildReckoningPrompt(project, researchData, trendData, hooksContext, feedbackContext, durationMinutes);
+    let prompt;
+    if (niche === 'growth_tech') {
+      prompt = this._buildGrowthTechPrompt(project, researchData, trendData, creatorStrategy, hooksContext, feedbackContext, durationMinutes);
+    } else if (niche === 'ai_education') {
+      prompt = this._buildAIEduPrompt(project, researchData, trendData, creatorStrategy, hooksContext, feedbackContext, durationMinutes);
+    } else {
+      prompt = this._buildReckoningPrompt(project, researchData, trendData, hooksContext, feedbackContext, durationMinutes);
+    }
 
     const scriptData = await this.claude.complete(systemPrompt, prompt, { maxTokens: 8192, jsonMode: true });
     if (creatorStrategy) scriptData.creatorStrategy = creatorStrategy;
@@ -166,6 +184,54 @@ Return as JSON:
     { "beat": "bold claim", "emotion": "curiosity/skepticism", "timestamp": "0:00" },
     { "beat": "proof moment", "emotion": "credibility/trust", "timestamp": "X:XX" },
     { "beat": "revelation", "emotion": "excitement/urgency", "timestamp": "X:XX" }
+  ]
+}`;
+  }
+
+  _buildAIEduPrompt(project, researchData, trendData, creatorStrategy, hooksContext, feedbackContext, durationMinutes) {
+    return `Write a viral AI Education script modeled after @kevin.dink.ai's live-build content style:
+
+TITLE: ${project.title}
+CONCEPT: ${project.concept}
+DURATION: ${durationMinutes} minutes (approximately ${durationMinutes * 130} words)
+RESEARCH: ${JSON.stringify(researchData || {}, null, 2)}
+CREATOR STRATEGY: ${JSON.stringify(creatorStrategy || {}, null, 2)}
+
+${hooksContext}
+${feedbackContext}
+
+REQUIREMENTS (@kevin.dink.ai style):
+- Open by SHOWING THE RESULT FIRST — the incredible thing they built before explaining how
+- Narrate as if you're screen-sharing live and walking someone through step by step
+- Include SPECIFIC tool names, prices, exact steps, commands (reference-worthy = saves)
+- Structure: Result Hook → Problem/Pain → Tool Introduction → Live Demo Steps → Result Proof → CTA
+- Every step must be concrete enough to follow immediately (vague = no saves)
+- Include [SCREEN: what's visible on screen] cues throughout
+- Include [ZOOM IN: highlight this element] for key moments
+- Include [TEXT OVERLAY: key stat/tool/price] for caption moments
+- End CTA: casual follow prompt focused on what comes next in the build
+- Tone: enthusiastic discoverer, not corporate instructor
+
+Return as JSON:
+{
+  "hook": "Opening 10-15 seconds — show the result first, then 'let me show you how'",
+  "hookFormula": "Which formula (result-first / price-shock / tool-reveal / live-demo)",
+  "actOne": "Problem setup + tool introduction — why this matters",
+  "actTwo": "Live demo narration — step-by-step with SCREEN cues",
+  "actThree": "Result proof + what they can now build themselves",
+  "callToAction": "Follow CTA teasing what gets built next",
+  "fullScript": "Complete script with [SCREEN], [ZOOM IN], [TEXT OVERLAY] cues",
+  "wordCount": 0,
+  "estimatedDuration": 0,
+  "keyLines": ["Most bookmark-worthy lines — specific steps or prices"],
+  "textOverlays": ["Tool name + price", "Step 1: ...", "Step 2: ...", "Result: ..."],
+  "screenCues": ["Screen 1: VS Code open at...", "Screen 2: Browser showing..."],
+  "saveHook": "The single line that makes people save this video to watch later",
+  "commentHook": "The question that makes people comment their experience",
+  "emotionalBeats": [
+    { "beat": "result reveal", "emotion": "amazement/FOMO", "timestamp": "0:00" },
+    { "beat": "demo moment", "emotion": "following-along excitement", "timestamp": "X:XX" },
+    { "beat": "it works", "emotion": "satisfaction/motivation", "timestamp": "X:XX" }
   ]
 }`;
   }

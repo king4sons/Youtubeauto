@@ -87,10 +87,71 @@ const CONTENT_NICHES = {
       hookType: 'bold_claim_or_story_opener',
       audienceTrust: 'built_through_specificity_and_results'
     }
+  },
+  AI_EDUCATION: {
+    id: 'ai_education',
+    name: 'AI Education',
+    themes: ['build_with_ai', 'ai_tools_revealed', 'build_in_public', 'make_money_with_ai',
+      'automate_everything', 'ai_for_beginners', 'coding_with_ai', 'digital_products'],
+    tone: 'enthusiastic_practical_demonstrative',
+    protagonist: 'builder_showing_live_proof',
+    format: 'screen_recording_with_face_cam_overlay',
+    creatorModel: {
+      handle: 'kevin.dink.ai',
+      platform: 'tiktok',
+      style: 'live_screen_recording_with_talking_head',
+      energy: 'excited_builder_sharing_discovery',
+      background: 'screen_share_vs_code_or_browser',
+      captionStyle: 'bold_title_cards_and_text_overlays',
+      hookType: 'show_the_result_first_then_reveal_how',
+      audienceTrust: 'built_through_live_demonstration_and_proof',
+      saveRateSignal: 'extremely_high_reference_worthy_content'
+    }
   }
 };
 
 const CREATOR_PROFILES = {
+  'kevin.dink.ai': {
+    handle: 'kevin.dink.ai',
+    platform: 'tiktok',
+    niche: 'ai_education',
+    contentPillars: [
+      'build with Claude Code',
+      'AI tools nobody talks about',
+      'live build sessions',
+      'make money with AI',
+      'automate your business',
+      'AI for content creators'
+    ],
+    hookFormulas: [
+      'For $[price]/month, AI built me an entire [X]...',
+      'LIVE: Watch me build [X] in [time] with Claude Code',
+      'This AI tool changed how I build everything',
+      'I automated [painful task] completely. Here\'s how.',
+      '[Number] AI tools I wish I knew sooner'
+    ],
+    videoStyle: {
+      cameraStyle: 'picture_in_picture_face_over_screen',
+      editingPace: 'moderate_with_zoom_highlights_on_key_moments',
+      backgroundStyle: 'live_screen_recording_vs_code_or_browser',
+      captionStyle: 'bold_title_cards_large_text_overlays',
+      musicStyle: 'light_upbeat_background_or_none'
+    },
+    audienceProfile: {
+      demographics: '20-40 mixed_but_tech_skewed',
+      interests: ['AI tools', 'coding', 'side_hustle', 'automation', 'content_creation', 'solopreneur'],
+      painPoints: ['too_slow_to_build', 'dont_know_how_to_code', 'wasting_time_on_manual_work'],
+      aspirations: ['build_products_fast', 'passive_income', 'use_ai_effectively', 'ship_faster']
+    },
+    viralPatterns: {
+      avgViews: '30k-300k',
+      peakViralTrigger: 'live_demonstration_of_impossible_result',
+      commentTrigger: 'what_tool_is_that_or_how_do_i_start',
+      shareTrigger: 'reference_worthy_step_by_step_process',
+      saveTrigger: 'specific_workflow_people_want_to_replicate',
+      saveRatePattern: 'near_1_to_1_save_to_like_ratio'
+    }
+  },
   'sina.growthtech': {
     handle: 'sina.growthtech',
     platform: 'tiktok',

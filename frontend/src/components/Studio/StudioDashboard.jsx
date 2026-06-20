@@ -3,6 +3,7 @@ import axios from 'axios';
 import ProjectCreator from './ProjectCreator';
 import PipelineView from './PipelineView';
 import GrowthTechStudio from './GrowthTechStudio';
+import AIEduStudio from './AIEduStudio';
 import './StudioDashboard.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
@@ -17,11 +18,12 @@ const STATUS_COLORS = {
 
 const NICHES = [
   { id: 'reckoning', label: 'The Reckoning Files', icon: '⚡', accent: '#DC2626' },
-  { id: 'growthtech', label: 'GrowthTech Studio', icon: '🚀', accent: '#00FF88' }
+  { id: 'growthtech', label: 'GrowthTech Studio', icon: '🚀', accent: '#00FF88' },
+  { id: 'aiedu', label: 'AI Education', icon: '🤖', accent: '#6366F1' }
 ];
 
 const StudioDashboard = () => {
-  const [view, setView] = useState('dashboard'); // dashboard | create | pipeline | growthtech
+  const [view, setView] = useState('dashboard'); // dashboard | create | pipeline | growthtech | aiedu
   const [activeNiche, setActiveNiche] = useState('reckoning');
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -84,13 +86,36 @@ const StudioDashboard = () => {
             <h1>GrowthTech Studio</h1>
             <span className="brand-tagline" style={{ color: '#00CC6A' }}>@sina.growthtech · Raw · Direct · Viral</span>
           </div>
-          <button className="btn-back-niche" onClick={() => setView('dashboard')}>← All Studios</button>
+          <button className="btn-back-niche" onClick={() => { setActiveNiche('reckoning'); setView('dashboard'); }}>← All Studios</button>
         </header>
         <NichePicker active={activeNiche} onChange={(n) => {
           setActiveNiche(n);
-          setView(n === 'growthtech' ? 'growthtech' : 'dashboard');
+          setView(n === 'growthtech' ? 'growthtech' : n === 'aiedu' ? 'aiedu' : 'dashboard');
         }} />
         <GrowthTechStudio onCreateProject={(project) => {
+          fetchDashboard();
+          openPipeline(project);
+        }} />
+      </div>
+    );
+  }
+
+  if (view === 'aiedu') {
+    return (
+      <div className="studio-dashboard">
+        <header className="studio-header">
+          <div className="studio-brand">
+            <span className="brand-icon">🤖</span>
+            <h1>AI Education Studio</h1>
+            <span className="brand-tagline" style={{ color: '#818CF8' }}>@kevin.dink.ai · Live Build · Show Don't Tell</span>
+          </div>
+          <button className="btn-back-niche" onClick={() => { setActiveNiche('reckoning'); setView('dashboard'); }}>← All Studios</button>
+        </header>
+        <NichePicker active={activeNiche} onChange={(n) => {
+          setActiveNiche(n);
+          setView(n === 'growthtech' ? 'growthtech' : n === 'aiedu' ? 'aiedu' : 'dashboard');
+        }} />
+        <AIEduStudio onCreateProject={(project) => {
           fetchDashboard();
           openPipeline(project);
         }} />
@@ -114,6 +139,7 @@ const StudioDashboard = () => {
       <NichePicker active={activeNiche} onChange={(n) => {
         setActiveNiche(n);
         if (n === 'growthtech') setView('growthtech');
+        else if (n === 'aiedu') setView('aiedu');
       }} />
 
       {stats && (
