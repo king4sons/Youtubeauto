@@ -1,0 +1,599 @@
+/* GrowthTech Studio — Electric Growth Aesthetic */
+
+.growthtech-studio {
+  background: #060608;
+  min-height: 100vh;
+  color: #E8E8F0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ── Header ─────────────────────────────── */
+.gt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.15);
+}
+
+.gt-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.gt-icon {
+  font-size: 2rem;
+  filter: drop-shadow(0 0 12px #00FF88);
+}
+
+.gt-brand h2 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.gt-subtitle {
+  font-size: 0.78rem;
+  color: #00CC6A;
+  margin: 2px 0 0;
+  letter-spacing: 0.3px;
+}
+
+.creator-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.creator-handle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #00FF88;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.creator-platform {
+  font-size: 0.7rem;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── Creator DNA Panel ───────────────────── */
+.creator-dna {
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.05) 0%, rgba(0, 200, 100, 0.02) 100%);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+}
+
+.creator-dna h3 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #00FF88;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0 0 16px;
+}
+
+.dna-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .dna-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.dna-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dna-label {
+  font-size: 0.68rem;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.dna-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #E8E8F0;
+  text-transform: capitalize;
+}
+
+.hook-formulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.hook-formulas .dna-label {
+  margin-right: 4px;
+}
+
+.formula-pill {
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  color: #00CC6A;
+  font-style: italic;
+}
+
+/* ── Section Wrapper ─────────────────────── */
+.gt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.gt-section h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+/* ── Labels ──────────────────────────────── */
+.gt-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+/* ── Content Pillars ─────────────────────── */
+.content-pillars {}
+
+.pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .pillar-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.pillar-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #9CA3AF;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.pillar-btn:hover {
+  border-color: rgba(0, 255, 136, 0.3);
+  color: #E8E8F0;
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.pillar-btn.active {
+  border-color: #00FF88;
+  background: rgba(0, 255, 136, 0.1);
+  color: #00FF88;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.15);
+}
+
+/* ── Hook Formula Options ────────────────── */
+.hook-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hook-option {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hook-option:hover {
+  border-color: rgba(0, 255, 136, 0.25);
+  background: rgba(0, 255, 136, 0.03);
+}
+
+.hook-option.active {
+  border-color: #00FF88;
+  background: rgba(0, 255, 136, 0.07);
+}
+
+.hook-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #E8E8F0;
+  margin-bottom: 4px;
+}
+
+.hook-option.active .hook-label {
+  color: #00FF88;
+}
+
+.hook-example {
+  font-size: 0.75rem;
+  color: #6B7280;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* ── Insight Builder ─────────────────────── */
+.insight-builder {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.insight-builder h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #00FF88;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 16px;
+}
+
+.gt-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 600px) {
+  .gt-form-grid { grid-template-columns: 1fr; }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.gt-input,
+.gt-textarea {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #E8E8F0;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.gt-input::placeholder,
+.gt-textarea::placeholder {
+  color: #4B5563;
+}
+
+.gt-input:focus,
+.gt-textarea:focus {
+  border-color: rgba(0, 255, 136, 0.5);
+  background: rgba(0, 255, 136, 0.03);
+}
+
+/* ── Duration Selector ───────────────────── */
+.duration-select {}
+
+.duration-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dur-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 72px;
+}
+
+.dur-btn:hover {
+  border-color: rgba(0, 255, 136, 0.3);
+  background: rgba(0, 255, 136, 0.04);
+}
+
+.dur-btn.active {
+  border-color: #00FF88;
+  background: rgba(0, 255, 136, 0.1);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.12);
+}
+
+.dur-time {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #E8E8F0;
+}
+
+.dur-btn.active .dur-time {
+  color: #00FF88;
+}
+
+.dur-platform {
+  font-size: 0.65rem;
+  color: #6B7280;
+  margin-top: 2px;
+}
+
+/* ── Concept Preview ─────────────────────── */
+.concept-preview {}
+
+.preview-box {
+  background: rgba(0, 255, 136, 0.04);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  color: #9CA3AF;
+  min-height: 52px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* ── Primary CTA Button ──────────────────── */
+.btn-gt-primary {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #00FF88 0%, #00CC6A 100%);
+  border: none;
+  border-radius: 10px;
+  color: #060608;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+.btn-gt-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.45);
+}
+
+.btn-gt-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Strategy View ───────────────────────── */
+.strategy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.strategy-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.btn-gt-outline {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 8px;
+  color: #00CC6A;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-gt-outline:hover {
+  background: rgba(0, 255, 136, 0.07);
+  border-color: #00FF88;
+}
+
+/* ── Hook Card ───────────────────────────── */
+.strategy-card {
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+.hook-card {
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.08) 0%, rgba(0, 200, 100, 0.04) 100%);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.strategy-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #00FF88;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+}
+
+.strategy-hook {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.strategy-formula {
+  font-size: 0.75rem;
+  color: #6B7280;
+}
+
+/* ── Strategy Grid ───────────────────────── */
+.strategy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .strategy-grid { grid-template-columns: 1fr; }
+}
+
+.strategy-block {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sb-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.sb-value {
+  font-size: 0.85rem;
+  color: #E8E8F0;
+  line-height: 1.4;
+}
+
+/* ── Visual Strategy ─────────────────────── */
+.visual-strategy {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.visual-strategy h4 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 14px;
+}
+
+.vs-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .vs-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.vs-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.vs-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.vs-value {
+  font-size: 0.8rem;
+  color: #D1D5DB;
+  text-transform: capitalize;
+  line-height: 1.3;
+}
+
+/* ── Title Options ───────────────────────── */
+.title-options {}
+
+.title-options h4 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 10px;
+}
+
+.title-option {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid #00FF88;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.85rem;
+  color: #E8E8F0;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* ── Launch Button ───────────────────────── */
+.btn-gt-launch {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #00FF88 0%, #00CC6A 100%);
+  border: none;
+  border-radius: 12px;
+  color: #060608;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 24px rgba(0, 255, 136, 0.35);
+  text-transform: uppercase;
+}
+
+.btn-gt-launch:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 36px rgba(0, 255, 136, 0.5);
+}
+
+.btn-gt-launch:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}

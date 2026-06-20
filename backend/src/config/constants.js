@@ -66,7 +66,63 @@ const CONTENT_NICHES = {
     name: 'The Reckoning Files',
     themes: ['betrayal', 'revenge', 'justice', 'psychological_warfare', 'strategic_comeback'],
     tone: 'cold_calculated_intelligent_cinematic',
-    protagonist: 'never_helpless_after_hook'
+    protagonist: 'never_helpless_after_hook',
+    creatorModel: null
+  },
+  GROWTH_TECH: {
+    id: 'growth_tech',
+    name: 'GrowthTech',
+    themes: ['business_secrets', 'startup_psychology', 'wealth_building', 'entrepreneur_mindset',
+      'side_hustle', 'tech_leverage', 'market_domination', 'productivity_hacks'],
+    tone: 'direct_raw_authentic_urgent',
+    protagonist: 'self_made_builder',
+    format: 'talking_head_or_faceless_broll',
+    creatorModel: {
+      handle: 'sina.growthtech',
+      platform: 'tiktok',
+      style: 'raw_authentic_direct_camera',
+      energy: 'high_conviction_casual',
+      background: 'real_environments_american_flag',
+      captionStyle: 'conversational_lowercase',
+      hookType: 'bold_claim_or_story_opener',
+      audienceTrust: 'built_through_specificity_and_results'
+    }
+  }
+};
+
+const CREATOR_PROFILES = {
+  'sina.growthtech': {
+    handle: 'sina.growthtech',
+    platform: 'tiktok',
+    niche: 'growth_tech',
+    contentPillars: ['business growth hacks', 'entrepreneur psychology', 'wealth secrets',
+      'startup leverage', 'side hustle systems', 'tech for business'],
+    hookFormulas: [
+      'The thing nobody tells you about [X]...',
+      'I made [result] doing [counter-intuitive thing]',
+      'Stop doing [common thing]. Here\'s why.',
+      '[Number] years ago I [situation]. Now [dramatic result].',
+      'The [industry] secret they don\'t want you to know'
+    ],
+    videoStyle: {
+      cameraStyle: 'handheld_direct_to_camera',
+      editingPace: 'fast_cuts_with_text_overlays',
+      backgroundStyle: 'authentic_real_life',
+      captionStyle: 'bold_text_overlays_key_points',
+      musicStyle: 'upbeat_or_no_music_raw_audio'
+    },
+    audienceProfile: {
+      demographics: '22-38 male_skewed',
+      interests: ['entrepreneurship', 'side_hustle', 'finance', 'self_improvement'],
+      painPoints: ['stuck_in_job', 'want_financial_freedom', 'scaling_business'],
+      aspirations: ['financial_independence', 'business_success', 'lifestyle_freedom']
+    },
+    viralPatterns: {
+      avgViews: '50k-500k',
+      peakViralTrigger: 'counter_intuitive_business_insight',
+      commentTrigger: 'controversial_opinion_or_specific_number',
+      shareTrigger: 'actionable_insight_worth_saving'
+    }
   }
 };
 
@@ -96,6 +152,7 @@ module.exports = {
   PIPELINE_STAGES,
   AGENT_NAMES,
   CONTENT_NICHES,
+  CREATOR_PROFILES,
   CINEMATIC_DIRECTORS,
   VIDEO_FORMATS,
   JOB_STATUS,

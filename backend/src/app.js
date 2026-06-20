@@ -26,9 +26,11 @@ app.get('/health', (req, res) => {
 // Routes
 const projectRoutes = require('./routes/projectRoutes');
 const videoGenerationRoutes = require('./routes/videoGenerationRoutes');
+const creatorRoutes = require('./routes/creatorRoutes');
 
 app.use('/api/projects', projectRoutes);
 app.use('/api/video-generation', videoGenerationRoutes);
+app.use('/api/creators', creatorRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

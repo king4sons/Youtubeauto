@@ -327,9 +327,70 @@
 .score.retention { color: var(--accent-blue); }
 .score.story { color: var(--warn-yellow); }
 
+/* ── Niche Picker ────────────────────────── */
+.niche-picker {
+  display: flex;
+  gap: 8px;
+  padding: 16px 32px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+
+.niche-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: -1px;
+}
+
+.niche-tab:hover {
+  color: var(--text-primary);
+}
+
+.niche-tab.active {
+  color: var(--niche-accent, var(--accent-red));
+  border-bottom-color: var(--niche-accent, var(--accent-red));
+}
+
+.niche-icon {
+  font-size: 1rem;
+}
+
+.niche-label {
+  font-size: 0.85rem;
+}
+
+/* ── Back button for niche views ─────────── */
+.btn-back-niche {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-back-niche:hover {
+  border-color: rgba(0, 255, 136, 0.4);
+  color: #00CC6A;
+}
+
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .projects-grid { grid-template-columns: 1fr; }
   .studio-header { flex-direction: column; gap: 16px; }
   .viral-gates-banner { flex-direction: column; }
+  .niche-picker { padding: 12px 16px 0; }
 }

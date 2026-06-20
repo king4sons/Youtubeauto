@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ProjectCreator from './ProjectCreator';
 import PipelineView from './PipelineView';
+import GrowthTechStudio from './GrowthTechStudio';
 import './StudioDashboard.css';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
@@ -14,8 +15,14 @@ const STATUS_COLORS = {
   blocked: '#F59E0B'
 };
 
+const NICHES = [
+  { id: 'reckoning', label: 'The Reckoning Files', icon: '⚡', accent: '#DC2626' },
+  { id: 'growthtech', label: 'GrowthTech Studio', icon: '🚀', accent: '#00FF88' }
+];
+
 const StudioDashboard = () => {
-  const [view, setView] = useState('dashboard'); // dashboard | create | pipeline
+  const [view, setView] = useState('dashboard'); // dashboard | create | pipeline | growthtech
+  const [activeNiche, setActiveNiche] = useState('reckoning');
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [stats, setStats] = useState(null);
@@ -68,6 +75,29 @@ const StudioDashboard = () => {
     );
   }
 
+  if (view === 'growthtech') {
+    return (
+      <div className="studio-dashboard">
+        <header className="studio-header">
+          <div className="studio-brand">
+            <span className="brand-icon">🚀</span>
+            <h1>GrowthTech Studio</h1>
+            <span className="brand-tagline" style={{ color: '#00CC6A' }}>@sina.growthtech · Raw · Direct · Viral</span>
+          </div>
+          <button className="btn-back-niche" onClick={() => setView('dashboard')}>← All Studios</button>
+        </header>
+        <NichePicker active={activeNiche} onChange={(n) => {
+          setActiveNiche(n);
+          setView(n === 'growthtech' ? 'growthtech' : 'dashboard');
+        }} />
+        <GrowthTechStudio onCreateProject={(project) => {
+          fetchDashboard();
+          openPipeline(project);
+        }} />
+      </div>
+    );
+  }
+
   return (
     <div className="studio-dashboard">
       <header className="studio-header">
@@ -80,6 +110,11 @@ const StudioDashboard = () => {
           + New Project
         </button>
       </header>
+
+      <NichePicker active={activeNiche} onChange={(n) => {
+        setActiveNiche(n);
+        if (n === 'growthtech') setView('growthtech');
+      }} />
 
       {stats && (
         <div className="stats-grid">
@@ -208,5 +243,21 @@ const ScorePill = ({ label, value, threshold }) => {
     </span>
   );
 };
+
+const NichePicker = ({ active, onChange }) => (
+  <div className="niche-picker">
+    {NICHES.map(n => (
+      <button
+        key={n.id}
+        className={`niche-tab ${active === n.id ? 'active' : ''}`}
+        style={active === n.id ? { '--niche-accent': n.accent } : {}}
+        onClick={() => onChange(n.id)}
+      >
+        <span className="niche-icon">{n.icon}</span>
+        <span className="niche-label">{n.label}</span>
+      </button>
+    ))}
+  </div>
+);
 
 export default StudioDashboard;
