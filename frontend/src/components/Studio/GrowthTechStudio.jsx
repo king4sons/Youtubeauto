@@ -114,7 +114,15 @@ const GrowthTechStudio = ({ onCreateProject }) => {
         userId: 'dev-user'
       });
 
-      onCreateProject({ _id: res.data.projectId, title, pipelineStatus: 'processing' });
+      onCreateProject({
+        _id: res.data.projectId,
+        title,
+        pipelineStatus: 'processing',
+        concept,
+        targetDuration: form.targetDuration,
+        targetPlatforms: form.targetDuration <= 90 ? ['tiktok', 'instagram', 'youtube_shorts'] : ['youtube', 'tiktok'],
+        niche: 'growth_tech'
+      });
     } catch (err) {
       alert(err.response?.data?.error || err.message);
     } finally {

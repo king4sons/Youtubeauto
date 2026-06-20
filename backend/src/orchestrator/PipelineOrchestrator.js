@@ -67,7 +67,7 @@ class PipelineOrchestrator {
           context.script = data;
           project.script = {
             hook: data.hook,
-            body: data.actTwo,
+            body: [data.actOne, data.actTwo, data.actThree].filter(Boolean).join('\n\n'),
             callToAction: data.callToAction,
             fullScript: data.fullScript,
             wordCount: data.wordCount,
@@ -147,6 +147,14 @@ class PipelineOrchestrator {
       await this._runStage(project, 'scene_planning', async () => {
         const data = await directorAgent.run(project, context);
         context.directorData = data;
+        if (Array.isArray(data.directedScenes)) {
+          data.directedScenes.forEach((ds, i) => {
+            if (project.scenes[i] && ds.refinedVideoPrompt) {
+              project.scenes[i].prompt = ds.refinedVideoPrompt;
+            }
+          });
+          project.markModified('scenes');
+        }
         await project.save();
         return data;
       });
@@ -168,23 +176,26 @@ class PipelineOrchestrator {
         return data;
       });
 
-      // Stages 8-9: Voice + Music (run in parallel)
-      const [voiceResult, musicResult] = await Promise.all([
-        this._runStage(project, 'voiceover_generation', async () => {
-          const data = await voiceAgent.run(project, context);
-          context.voiceData = data;
-          project.voiceoverUrl = data.audioUrl;
-          project.voiceoverDuration = data.audioDuration;
-          await project.save();
-          return data;
-        }),
-        this._runStage(project, 'sound_design', async () => {
-          const data = await musicAgent.run(project, context);
-          context.musicData = data;
-          await project.save();
-          return data;
-        })
-      ]);
+      // Stages 8-9: Voice + Music (sequential to avoid concurrent save races)
+      await this._runStage(project, 'voiceover_generation', async () => {
+        const data = await voiceAgent.run(project, context);
+        context.voiceData = data;
+        project.voiceoverUrl = data.audioUrl;
+        project.voiceoverDuration = data.audioDuration;
+        await project.save();
+        return data;
+      });
+
+      await this._runStage(project, 'sound_design', async () => {
+        const data = await musicAgent.run(project, context);
+        context.musicData = data;
+        project.musicTrackUrl = data.trackList?.[0]?.id || null;
+        project.soundEffects = (data.soundDesignPlan?.elements || [])
+          .map(e => e.sound || e.id)
+          .filter(Boolean);
+        await project.save();
+        return data;
+      });
 
       // Stage 10: Music Engine (music selection finalization)
       await this._runStage(project, 'music_engine', async () => {
@@ -280,6 +291,7 @@ class PipelineOrchestrator {
     const stages = project.stageStatuses || new Map();
     stages.set(stageName, { status: 'processing', startedAt: stageStart });
     project.stageStatuses = stages;
+    project.markModified('stageStatuses');
     await project.save();
 
     agentBus.publish(String(project._id), 'orchestrator', 'stage_started', { stage: stageName });
@@ -294,6 +306,7 @@ class PipelineOrchestrator {
         output: result ? '[output stored]' : null
       });
       project.stageStatuses = stages;
+      project.markModified('stageStatuses');
       await project.save();
 
       agentBus.publish(String(project._id), 'orchestrator', 'stage_completed', { stage: stageName });
@@ -307,6 +320,7 @@ class PipelineOrchestrator {
         error: error.message
       });
       project.stageStatuses = stages;
+      project.markModified('stageStatuses');
       await project.save();
 
       agentBus.publish(String(project._id), 'orchestrator', 'stage_failed', {

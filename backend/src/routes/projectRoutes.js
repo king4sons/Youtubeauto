@@ -189,10 +189,10 @@ router.get('/:id/stream', (req, res) => {
   const recent = agentBus.getMessages(projectId, 30);
   recent.forEach(msg => send(msg));
 
-  const handler = (message) => send(message);
-  agentBus.on('message', (msg) => {
-    if (String(msg.projectId) === projectId) handler(msg);
-  });
+  const handler = (msg) => {
+    if (String(msg.projectId) === projectId) send(msg);
+  };
+  agentBus.on('message', handler);
 
   req.on('close', () => {
     agentBus.off('message', handler);

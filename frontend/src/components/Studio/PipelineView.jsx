@@ -119,8 +119,8 @@ const PipelineView = ({ project, onBack }) => {
           {pipeline.viralScore.analysis && (
             <p className="score-analysis">{pipeline.viralScore.analysis}</p>
           )}
-          <div className={`gate-status ${pipeline.viralGatePassed ? 'passed' : 'pending'}`}>
-            {pipeline.viralGatePassed ? '✅ Viral Gate PASSED' : '⏳ Viral Gate Pending'}
+          <div className={`gate-status ${pipeline.viralGatePassed ? 'passed' : pipeline.pipelineStatus === 'blocked' ? 'failed' : 'pending'}`}>
+            {pipeline.viralGatePassed ? '✅ Viral Gate PASSED' : pipeline.pipelineStatus === 'blocked' ? '❌ Viral Gate FAILED' : '⏳ Viral Gate Pending'}
           </div>
         </div>
       )}
