@@ -1,0 +1,16 @@
+{
+  "configurations": [
+    {
+      "name": "Frontend",
+      "command": "npm run dev -- --host 0.0.0.0",
+      "cwd": "frontend",
+      "port": 5173
+    },
+    {
+      "name": "Backend",
+      "command": "python3 -m uvicorn main:app --host 0.0.0.0 --port 8000",
+      "cwd": "backend",
+      "port": 8000
+    }
+  ]
+}
