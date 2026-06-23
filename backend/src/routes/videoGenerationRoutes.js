@@ -1,32 +1,38 @@
 const express = require('express');
 const router = express.Router();
-const videoGenerationService = require('../services/videoGenerationService');
+const videoService = require('../services/videoGenerationService');
 const auth = require('../middleware/auth');
 const logger = require('../utils/logger');
 
-/**
- * @route   POST /api/video-generation/generate
- * @desc    Generate custom video
- * @access  Private
- */
+// GET /api/video/providers
+router.get('/providers', (req, res) => {
+  try {
+    res.json({ data: videoService.getProviders() });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/video/providers/:platform
+router.get('/providers/:platform', (req, res) => {
+  try {
+    const providers = videoService.getProvidersForPlatform(req.params.platform);
+    res.json({ platform: req.params.platform, data: providers });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/video/generate — generate any video
 router.post('/generate', auth, async (req, res) => {
   try {
-    const { prompt, provider, format, duration, aspectRatio, style } = req.body;
+    const { prompt, provider, format, duration, aspectRatio, style, platform } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
-    }
-
-    const result = await videoGenerationService.generateVideo({
-      prompt,
-      provider,
-      format,
-      duration,
-      aspectRatio,
-      style,
+    const result = await videoService.generateVideo({
+      prompt, provider, format, duration, aspectRatio, style, platform,
       userId: req.user.id
     });
-
     res.json(result);
   } catch (error) {
     logger.error(`Generate video error: ${error.message}`);
@@ -34,206 +40,72 @@ router.post('/generate', auth, async (req, res) => {
   }
 });
 
-/**
- * @route   POST /api/video-generation/generate-shortform
- * @desc    Generate short-form video (TikTok, Shorts, Reels)
- * @access  Private
- */
-router.post('/generate-shortform', auth, async (req, res) => {
+// POST /api/video/shortform
+router.post('/shortform', auth, async (req, res) => {
   try {
-    const { prompt, style } = req.body;
+    const { prompt, platform, provider, duration } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
-    }
-
-    const result = await videoGenerationService.generateShortForm({
-      prompt,
-      style,
+    const result = await videoService.generateShortForm({
+      prompt, platform: platform || 'tiktok', provider, duration,
       userId: req.user.id
     });
-
     res.json(result);
   } catch (error) {
-    logger.error(`Generate short-form error: ${error.message}`);
+    logger.error(`Short-form error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @route   POST /api/video-generation/generate-longform
- * @desc    Generate long-form video (YouTube - 1 minute)
- * @access  Private
- */
-router.post('/generate-longform', auth, async (req, res) => {
+// POST /api/video/longform
+router.post('/longform', auth, async (req, res) => {
   try {
-    const { prompt, style } = req.body;
+    const { prompt, platform, provider, duration } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
-    }
-
-    const result = await videoGenerationService.generateLongForm({
-      prompt,
-      style,
+    const result = await videoService.generateLongForm({
+      prompt, platform: platform || 'youtube', provider, duration,
       userId: req.user.id
     });
-
     res.json(result);
   } catch (error) {
-    logger.error(`Generate long-form error: ${error.message}`);
+    logger.error(`Long-form error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @route   POST /api/video-generation/generate-extended
- * @desc    Generate extended-form video (10-15 minutes)
- * @access  Private
- */
-router.post('/generate-extended', auth, async (req, res) => {
-  try {
-    const { 
-      prompt, 
-      duration, 
-      style,
-      segments,
-      autoGenerateSegments,
-      includeVoiceover,
-      includeMusic,
-      musicGenre
-    } = req.body;
-
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
-    }
-
-    if (duration && (duration < 600 || duration > 900)) {
-      return res.status(400).json({ 
-        error: 'Extended form duration must be between 10-15 minutes (600-900 seconds)' 
-      });
-    }
-
-    const result = await videoGenerationService.generateExtendedForm({
-      prompt,
-      duration: duration || 600,
-      style: style || 'documentary',
-      segments: segments || [],
-      autoGenerateSegments: autoGenerateSegments !== false,
-      includeVoiceover: includeVoiceover || false,
-      includeMusic: includeMusic || false,
-      musicGenre: musicGenre || 'cinematic',
-      userId: req.user.id
-    });
-
-    res.json(result);
-  } catch (error) {
-    logger.error(`Generate extended-form error: ${error.message}`);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @route   POST /api/video-generation/voiceover
- * @desc    Generate voiceover
- * @access  Private
- */
+// POST /api/video/voiceover
 router.post('/voiceover', auth, async (req, res) => {
   try {
     const { text, voiceId } = req.body;
+    if (!text) return res.status(400).json({ error: 'text is required' });
 
-    if (!text) {
-      return res.status(400).json({ error: 'Text is required' });
-    }
-
-    const result = await videoGenerationService.generateVoiceover({
-      text,
-      voiceId,
-      userId: req.user.id
-    });
-
+    const result = await videoService.generateVoiceover({ text, voiceId, userId: req.user.id });
     res.json(result);
   } catch (error) {
-    logger.error(`Generate voiceover error: ${error.message}`);
+    logger.error(`Voiceover error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @route   GET /api/video-generation/:generationId/status
- * @desc    Check generation status
- * @access  Private
- */
-router.get('/:generationId/status', auth, async (req, res) => {
+// GET /api/video/status/:provider/:jobId
+router.get('/status/:provider/:jobId', auth, async (req, res) => {
   try {
-    const result = await videoGenerationService.checkStatus(req.params.generationId);
-    res.json(result);
+    const { provider, jobId } = req.params;
+    const status = await videoService.checkJobStatus(provider, jobId);
+    res.json(status);
   } catch (error) {
-    logger.error(`Status check error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @route   GET /api/video-generation/history
- * @desc    Get generation history
- * @access  Private
- */
-router.get('/history', auth, async (req, res) => {
-  try {
-    const limit = req.query.limit || 20;
-    const format = req.query.format || null;
-
-    const history = await videoGenerationService.getGenerationHistory(
-      req.user.id,
-      limit,
-      format
-    );
-
-    res.json({
-      total: history.length,
-      data: history
-    });
-  } catch (error) {
-    logger.error(`History error: ${error.message}`);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @route   GET /api/video-generation/providers
- * @desc    Get available providers
- * @access  Public
- */
-router.get('/providers', (req, res) => {
-  try {
-    const providers = videoGenerationService.getProviders();
-    res.json({
-      total: providers.length,
-      data: providers
-    });
-  } catch (error) {
-    logger.error(`Providers error: ${error.message}`);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @route   GET /api/video-generation/providers/extended
- * @desc    Get extended-form providers (10-15 minutes support)
- * @access  Public
- */
-router.get('/providers/extended', (req, res) => {
-  try {
-    const providers = videoGenerationService.getExtendedFormProviders();
-    res.json({
-      total: providers.length,
-      format: 'Extended Form (10-15 minutes)',
-      data: providers
-    });
-  } catch (error) {
-    logger.error(`Extended providers error: ${error.message}`);
-    res.status(500).json({ error: error.message });
+// Dev simulation status endpoint
+router.get('/dev-status/:jobId', (req, res) => {
+  const progress = Math.random();
+  if (progress > 0.7) {
+    res.json({ status: 'completed', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' });
+  } else {
+    res.json({ status: 'processing', progress: Math.round(progress * 100) });
   }
 });
 
