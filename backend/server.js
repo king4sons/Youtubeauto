@@ -39,8 +39,17 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 404
-app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
+// Serve built React app
+const path = require('path');
+const fs = require('fs');
+const buildPath = path.join(__dirname, '../frontend/build');
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+  app.get('*', (req, res) => res.sendFile(path.join(buildPath, 'index.html')));
+} else {
+  // 404 for API-only mode
+  app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
+}
 
 // Error handler
 app.use((err, req, res, next) => {
