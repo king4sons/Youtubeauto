@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const STATUS_BADGE = {
   draft: 'badge-gray',
@@ -28,7 +28,7 @@ export default function ContentLibrary() {
       const params = new URLSearchParams();
       if (filter.platform) params.append('platform', filter.platform);
       if (filter.contentType) params.append('contentType', filter.contentType);
-      const res = await axios.get(`/api/content?${params}`);
+      const res = await api.get(`/api/content?${params}`);
       setItems(res.data.data || []);
     } catch {
       setItems([]);
@@ -40,7 +40,7 @@ export default function ContentLibrary() {
   const syncStatus = async (contentId) => {
     setPolling(p => ({ ...p, [contentId]: true }));
     try {
-      const res = await axios.get(`/api/content/${contentId}/status`);
+      const res = await api.get(`/api/content/${contentId}/status`);
       setItems(prev => prev.map(i => i._id === contentId ? { ...i, video: { ...i.video, ...res.data } } : i));
       if (selected?._id === contentId) {
         setSelected(prev => ({ ...prev, video: { ...prev.video, ...res.data } }));
@@ -52,7 +52,7 @@ export default function ContentLibrary() {
   const deleteContent = async (contentId) => {
     if (!window.confirm('Delete this content?')) return;
     try {
-      await axios.delete(`/api/content/${contentId}`);
+      await api.delete(`/api/content/${contentId}`);
       setItems(prev => prev.filter(i => i._id !== contentId));
       if (selected?._id === contentId) setSelected(null);
     } catch {}

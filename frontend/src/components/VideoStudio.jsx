@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const ASPECT_RATIOS = [
   { value: '16:9', label: '16:9 Widescreen (YouTube)' },
@@ -28,7 +28,7 @@ export default function VideoStudio() {
 
   const fetchProviders = async () => {
     try {
-      const res = await axios.get('/api/video/providers');
+      const res = await api.get('/api/video/providers');
       const data = res.data.data || [];
       setProviders(data);
       if (data.length > 0) setForm(f => ({ ...f, provider: data[0].id }));
@@ -41,7 +41,7 @@ export default function VideoStudio() {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post('/api/video/generate', form);
+      const res = await api.post('/api/video/generate', form);
       setJobs(prev => [{ ...res.data, prompt: form.prompt, createdAt: new Date() }, ...prev]);
       setForm(f => ({ ...f, prompt: '' }));
       setActiveTab('jobs');
@@ -56,7 +56,7 @@ export default function VideoStudio() {
     if (!form.prompt.trim()) { setError('Enter text for voiceover'); return; }
     setLoading(true);
     try {
-      const res = await axios.post('/api/video/voiceover', { text: form.prompt });
+      const res = await api.post('/api/video/voiceover', { text: form.prompt });
       if (res.data.audio) {
         const audio = new Audio(`data:${res.data.mimeType};base64,${res.data.audio}`);
         audio.play();
@@ -70,7 +70,7 @@ export default function VideoStudio() {
 
   const checkStatus = async (job) => {
     try {
-      const res = await axios.get(`/api/video/status/${job.providerId}/${job.jobId}`);
+      const res = await api.get(`/api/video/status/${job.providerId}/${job.jobId}`);
       setJobs(prev => prev.map(j => j.jobId === job.jobId ? { ...j, ...res.data } : j));
     } catch {}
   };

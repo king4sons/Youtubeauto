@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const PLATFORMS = [
   { id: 'youtube', label: 'YouTube', icon: '▶', ratio: '16:9', desc: 'Long-form content' },
@@ -52,12 +52,12 @@ export default function ContentCreator() {
 
   const fetchProviders = async () => {
     try {
-      const res = await axios.get(`/api/video/providers/${platform}`);
+      const res = await api.get(`/api/video/providers/${platform}`);
       setProviders(res.data.data || []);
       const first = (res.data.data || [])[0];
       if (first) setSelectedProvider(first.id);
     } catch {
-      const res = await axios.get('/api/video/providers');
+      const res = await api.get('/api/video/providers');
       setProviders(res.data.data || []);
     }
   };
@@ -67,7 +67,7 @@ export default function ContentCreator() {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post('/api/content/create', {
+      const res = await api.post('/api/content/create', {
         topic: form.topic,
         platform,
         contentType: form.contentType,
@@ -89,7 +89,7 @@ export default function ContentCreator() {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post(`/api/content/${contentId}/generate-video`, {
+      const res = await api.post(`/api/content/${contentId}/generate-video`, {
         provider: selectedProvider
       });
       setVideoJob(res.data);

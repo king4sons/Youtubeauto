@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const NICHES = ['Technology', 'Finance', 'Health & Fitness', 'Beauty', 'Gaming', 'Travel', 'Food', 'Education', 'Business', 'Lifestyle', 'Comedy', 'DIY', 'Motivation', 'News', 'Crypto'];
 
@@ -15,7 +15,7 @@ export default function IdeaGenerator() {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post('/api/content/ideas/generate', form);
+      const res = await api.post('/api/content/ideas/generate', form);
       setIdeas(res.data.data || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to generate ideas. Check ANTHROPIC_API_KEY.');

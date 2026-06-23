@@ -24,7 +24,8 @@ app.use('/api', rateLimit({
   message: { error: 'Too many requests, please try again later.' }
 }));
 
-// Routes
+// Routes — auth is public, everything else requires a valid token
+app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/content', require('./src/routes/contentRoutes'));
 app.use('/api/video', require('./src/routes/videoGenerationRoutes'));
 

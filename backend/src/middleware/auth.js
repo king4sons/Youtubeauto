@@ -5,7 +5,7 @@ const auth = (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
 
   if (!token) {
-    return res.status(401).json({ error: 'No token, authorization denied' });
+    return res.status(401).json({ error: 'Not authenticated' });
   }
 
   try {
@@ -14,17 +14,8 @@ const auth = (req, res, next) => {
     next();
   } catch (error) {
     logger.warn(`Invalid token: ${error.message}`);
-    res.status(401).json({ error: 'Token is not valid' });
+    res.status(401).json({ error: 'Session expired — please log in again' });
   }
 };
 
-// Dev bypass middleware — uses a fake user when no real auth is configured
-const devAuth = (req, res, next) => {
-  if (process.env.NODE_ENV === 'development' && !req.header('Authorization')) {
-    req.user = { id: 'dev_user_001', email: 'dev@youtubeauto.local' };
-    return next();
-  }
-  return auth(req, res, next);
-};
-
-module.exports = process.env.NODE_ENV === 'development' ? devAuth : auth;
+module.exports = auth;

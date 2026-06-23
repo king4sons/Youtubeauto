@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const STAT_CARDS = [
   { label: 'Total Content', key: 'total', icon: '▤', color: '#6366f1' },
@@ -34,7 +34,7 @@ export default function Dashboard({ onNavigate }) {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get('/api/content');
+      const res = await api.get('/api/content');
       const items = res.data.data || [];
       setContent(items.slice(0, 6));
       setStats({
