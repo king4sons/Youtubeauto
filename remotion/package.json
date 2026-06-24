@@ -1,0 +1,25 @@
+{
+  "name": "youtubeauto-remotion",
+  "version": "1.0.0",
+  "description": "Remotion video compositions for YoutubeAuto",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render:short": "remotion render src/index.ts ShortFormVideo --output out/short.mp4",
+    "render:long": "remotion render src/index.ts LongFormVideo --output out/long.mp4",
+    "render:extended": "remotion render src/index.ts ExtendedVideo --output out/extended.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.0",
+    "@remotion/lambda": "4.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "remotion": "4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "18.2.0",
+    "typescript": "5.0.4"
+  },
+  "remotion": {
+    "entryPoint": "src/index.ts"
+  }
+}
