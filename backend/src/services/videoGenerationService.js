@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
+const replitConnector = require('./replitConnector');
 
 class VideoGenerationService {
   constructor() {
@@ -148,13 +149,21 @@ class VideoGenerationService {
 
     logger.info(`Dispatching ${format} video to ${config.name} (${resolvedDuration}s) for ${platform}`);
 
-    const jobDetails = await this._dispatchToProvider(resolvedProvider, {
+    const dispatchParams = {
       prompt,
       duration: resolvedDuration,
       aspectRatio: aspectRatio || this._aspectRatioForPlatform(platform),
       style,
-      userId
-    });
+      userId,
+      provider: resolvedProvider,
+      platform,
+      format
+    };
+
+    // Route through Replit worker when configured
+    const jobDetails = replitConnector.isConfigured
+      ? await this._dispatchToReplit(dispatchParams)
+      : await this._dispatchToProvider(resolvedProvider, dispatchParams);
 
     return {
       success: true,
@@ -227,16 +236,23 @@ class VideoGenerationService {
   }
 
   async checkJobStatus(provider, jobId) {
+    // Replit worker jobs have a "replit_" prefix or when connector is active
+    if (replitConnector.isConfigured || jobId.startsWith('replit_')) {
+      try {
+        return await replitConnector.getJobStatus(jobId);
+      } catch (err) {
+        logger.warn(`Replit status check failed, falling back: ${err.message}`);
+      }
+    }
+
     const config = this.providers[provider];
     if (!config) throw new Error(`Unknown provider: ${provider}`);
 
     try {
-      // Each provider has a different status endpoint pattern
       const statusUrl = this._statusUrl(provider, jobId, config);
       const response = await axios.get(statusUrl, {
         headers: this._authHeaders(provider, config)
       });
-
       return this._normalizeStatus(provider, response.data);
     } catch (error) {
       throw new Error(`Status check failed for ${provider}: ${error.message}`);
@@ -253,8 +269,19 @@ class VideoGenerationService {
       bestFor: cfg.bestFor,
       quality: cfg.quality,
       speed: cfg.speed,
-      isConfigured: !!cfg.apiKey
+      isConfigured: !!cfg.apiKey,
+      routedViaReplit: replitConnector.isConfigured
     }));
+  }
+
+  // Dispatch to Replit worker
+  async _dispatchToReplit(params) {
+    try {
+      return await replitConnector.dispatch(params);
+    } catch (err) {
+      logger.warn(`Replit dispatch failed (${err.message}), falling back to local simulation`);
+      return this._simulateJob(params.provider, params);
+    }
   }
 
   getProvidersForPlatform(platform) {

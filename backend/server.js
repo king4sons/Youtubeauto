@@ -28,6 +28,7 @@ app.use('/api', rateLimit({
 app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/content', require('./src/routes/contentRoutes'));
 app.use('/api/video', require('./src/routes/videoGenerationRoutes'));
+app.use('/api/connector', require('./src/routes/connectorRoutes'));
 
 // Health check
 app.get('/health', (req, res) => {

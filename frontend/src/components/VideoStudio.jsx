@@ -21,10 +21,43 @@ export default function VideoStudio() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('generate');
+  const [connector, setConnector] = useState(null);
+  const [connectorJobs, setConnectorJobs] = useState([]);
+  const [connectorLoading, setConnectorLoading] = useState(false);
 
   useEffect(() => {
     fetchProviders();
+    fetchConnectorStatus();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'connector') return;
+    fetchConnectorStatus();
+    fetchConnectorJobs();
+    const id = setInterval(() => { fetchConnectorStatus(); fetchConnectorJobs(); }, 10000);
+    return () => clearInterval(id);
+  }, [activeTab]);
+
+  const fetchConnectorStatus = async () => {
+    try {
+      const res = await api.get('/api/connector/status');
+      setConnector(res.data);
+    } catch {}
+  };
+
+  const fetchConnectorJobs = async () => {
+    try {
+      const res = await api.get('/api/connector/jobs');
+      if (Array.isArray(res.data)) setConnectorJobs(res.data);
+    } catch {}
+  };
+
+  const cancelConnectorJob = async (jobId) => {
+    try {
+      await api.delete(`/api/connector/jobs/${jobId}`);
+      fetchConnectorJobs();
+    } catch {}
+  };
 
   const fetchProviders = async () => {
     try {
@@ -89,6 +122,11 @@ export default function VideoStudio() {
         <button className={`tab-btn ${activeTab === 'voiceover' ? 'active' : ''}`} onClick={() => setActiveTab('voiceover')}>Voiceover</button>
         <button className={`tab-btn ${activeTab === 'jobs' ? 'active' : ''}`} onClick={() => setActiveTab('jobs')}>Jobs ({jobs.length})</button>
         <button className={`tab-btn ${activeTab === 'models' ? 'active' : ''}`} onClick={() => setActiveTab('models')}>All Models</button>
+        <button className={`tab-btn ${activeTab === 'connector' ? 'active' : ''}`} onClick={() => setActiveTab('connector')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Replit Connector
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: connector?.ok ? '#22c55e' : '#6b7280', display: 'inline-block' }} />
+        </button>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -223,6 +261,76 @@ export default function VideoStudio() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'connector' && (
+        <div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Replit Worker</span>
+              <button className="btn btn-secondary btn-sm" onClick={fetchConnectorStatus}>↻ Refresh</button>
+            </div>
+            {connector ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '50%', background: connector.ok ? '#22c55e' : '#ef4444', display: 'inline-block' }} />
+                  <strong>{connector.ok ? 'Connected' : 'Disconnected'}</strong>
+                  {!connector.ok && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>— {connector.reason}</span>}
+                </div>
+                {connector.configured && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div>Worker URL: <code style={{ fontSize: 11 }}>{connector.workerUrl}</code></div>
+                    {connector.jobsInQueue !== undefined && <div>Jobs in queue: <strong>{connector.jobsInQueue}</strong></div>}
+                    {connector.jobsCompleted !== undefined && <div>Jobs completed: <strong>{connector.jobsCompleted}</strong></div>}
+                    {connector.uptime !== undefined && <div>Uptime: <strong>{Math.round(connector.uptime)}s</strong></div>}
+                  </div>
+                )}
+                {!connector.configured && (
+                  <div style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 8, padding: 12, fontSize: 12 }}>
+                    <strong>Setup Required</strong>
+                    <p style={{ marginTop: 6, marginBottom: 0, color: 'var(--text-muted)' }}>
+                      Set <code>REPLIT_WORKER_URL</code> in <code>backend/.env</code> to your Replit app URL to route video jobs through the Replit worker.
+                      When not configured, jobs run in local simulation mode.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Checking connector status...</div>
+            )}
+          </div>
+
+          {connector?.ok && (
+            <div className="card">
+              <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Worker Job Queue</span>
+                <button className="btn btn-secondary btn-sm" onClick={fetchConnectorJobs}>↻ Refresh</button>
+              </div>
+              {connectorJobs.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 0' }}>No jobs on the worker yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {connectorJobs.slice(0, 20).map((job, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>{job.provider || 'Unknown'}</div>
+                        <code style={{ fontSize: 10, color: 'var(--text-muted)' }}>{job.jobId}</code>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span className={`badge ${job.status === 'completed' ? 'badge-green' : job.status === 'failed' ? 'badge-red' : 'badge-yellow'}`}>
+                          {job.status}
+                        </span>
+                        {job.status === 'queued' && (
+                          <button className="btn btn-secondary btn-sm" onClick={() => cancelConnectorJob(job.jobId)}>Cancel</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
