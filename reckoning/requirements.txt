@@ -1,0 +1,16 @@
+# Reckoning — Python dependencies (target platform: macOS / Apple Silicon)
+#
+# Note on openwakeword: on macOS it installs with the onnxruntime backend
+# (no extra system libs). It only pulls in "tflite-runtime" on Linux, which
+# has no wheel for Python 3.12 — so if you ever run this on Linux, install
+# openwakeword separately. On your Mac, the line below just works.
+
+anthropic>=0.109.0
+faster-whisper>=1.0.0
+openwakeword>=0.6.0
+sounddevice>=0.4.6
+numpy>=1.24.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+flask>=3.0.0
+flask-cors>=4.0.0
