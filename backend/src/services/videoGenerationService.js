@@ -1,860 +1,567 @@
 const axios = require('axios');
-const { VideoGeneration } = require('../models/VideoGeneration');
 const logger = require('../utils/logger');
+const replitConnector = require('./replitConnector');
 
 class VideoGenerationService {
   constructor() {
+    // All providers — maps to APIs shown in Artlist Studio + additional ones
     this.providers = {
-      veo3: {
-        name: 'Google Veo 3',
-        endpoint: process.env.VEO3_API_ENDPOINT,
-        apiKey: process.env.VEO3_API_KEY,
-        maxDuration: 120, // seconds
-        type: 'longform'
-      },
-      runway: {
-        name: 'Runway ML',
-        endpoint: process.env.RUNWAY_API_ENDPOINT,
-        apiKey: process.env.RUNWAY_API_KEY,
-        maxDuration: 120,
-        type: 'longform'
-      },
-      leonardo: {
-        name: 'Leonardo.ai',
-        endpoint: process.env.LEONARDO_API_ENDPOINT,
-        apiKey: process.env.LEONARDO_API_KEY,
-        maxDuration: 30,
-        type: 'shortform'
-      },
-      synthesia: {
-        name: 'Synthesia',
-        endpoint: process.env.SYNTHESIA_API_ENDPOINT,
-        apiKey: process.env.SYNTHESIA_API_KEY,
-        maxDuration: 300,
-        type: 'both'
-      },
-      eleven: {
-        name: 'ElevenLabs Voice',
-        endpoint: process.env.ELEVEN_API_ENDPOINT,
-        apiKey: process.env.ELEVEN_API_KEY,
-        maxDuration: 900, // 15 minutes
-        type: 'voiceover'
-      },
-      descript: {
-        name: 'Descript',
-        endpoint: process.env.DESCRIPT_API_ENDPOINT,
-        apiKey: process.env.DESCRIPT_API_KEY,
-        maxDuration: 900,
-        type: 'editing'
-      },
-      pika: {
-        name: 'Pika 1.0',
-        endpoint: process.env.PIKA_API_ENDPOINT,
-        apiKey: process.env.PIKA_API_KEY,
-        maxDuration: 30,
-        type: 'shortform'
-      },
-      kling: {
-        name: 'Kling AI',
-        endpoint: process.env.KLING_API_ENDPOINT,
+      // --- SHORT FORM SPECIALISTS (best for TikTok/Reels/Shorts) ---
+      kling_16: {
+        name: 'Kling 1.6',
+        endpoint: process.env.KLING_API_ENDPOINT || 'https://api.klingai.com',
         apiKey: process.env.KLING_API_KEY,
         maxDuration: 30,
-        type: 'shortform'
+        type: 'shortform',
+        bestFor: ['tiktok', 'instagram_reels', 'youtube_shorts'],
+        quality: 'high',
+        speed: 'fast'
+      },
+      kling_21: {
+        name: 'Kling 2.1',
+        endpoint: process.env.KLING_API_ENDPOINT || 'https://api.klingai.com',
+        apiKey: process.env.KLING_API_KEY,
+        maxDuration: 30,
+        type: 'shortform',
+        bestFor: ['tiktok', 'instagram_reels', 'youtube_shorts'],
+        quality: 'higher',
+        speed: 'medium'
+      },
+      kling_25_turbo: {
+        name: 'Kling 2.5 Turbo',
+        endpoint: process.env.KLING_API_ENDPOINT || 'https://api.klingai.com',
+        apiKey: process.env.KLING_API_KEY,
+        maxDuration: 30,
+        type: 'shortform',
+        bestFor: ['tiktok', 'instagram_reels', 'youtube_shorts'],
+        quality: 'highest',
+        speed: 'fast'
+      },
+      ltx_23: {
+        name: 'LTX 2.3 Pro',
+        endpoint: process.env.LTX_API_ENDPOINT || 'https://api.ltx.studio',
+        apiKey: process.env.LTX_API_KEY,
+        maxDuration: 60,
+        type: 'shortform',
+        bestFor: ['tiktok', 'youtube_shorts', 'instagram_reels'],
+        quality: 'high',
+        speed: 'fast'
+      },
+      seedance: {
+        name: 'Seedance 1.0 Pro Fast',
+        endpoint: process.env.SEEDANCE_API_ENDPOINT || 'https://api.seedance.ai',
+        apiKey: process.env.SEEDANCE_API_KEY,
+        maxDuration: 60,
+        type: 'shortform',
+        bestFor: ['tiktok', 'instagram_reels'],
+        quality: 'high',
+        speed: 'very_fast'
+      },
+      pika: {
+        name: 'Pika 2.0',
+        endpoint: process.env.PIKA_API_ENDPOINT || 'https://api.pika.art',
+        apiKey: process.env.PIKA_API_KEY,
+        maxDuration: 30,
+        type: 'shortform',
+        bestFor: ['tiktok', 'youtube_shorts'],
+        quality: 'high',
+        speed: 'fast'
+      },
+
+      // --- LONG FORM / YOUTUBE SPECIALISTS ---
+      veo3: {
+        name: 'Veo 3.1 Lite',
+        endpoint: process.env.VEO3_API_ENDPOINT || 'https://us-central1-aiplatform.googleapis.com/v1',
+        apiKey: process.env.VEO3_API_KEY,
+        maxDuration: 120,
+        type: 'longform',
+        bestFor: ['youtube'],
+        quality: 'cinematic',
+        speed: 'medium'
+      },
+      runway: {
+        name: 'Runway Gen-4',
+        endpoint: process.env.RUNWAY_API_ENDPOINT || 'https://api.runwayml.com',
+        apiKey: process.env.RUNWAY_API_KEY,
+        maxDuration: 120,
+        type: 'longform',
+        bestFor: ['youtube'],
+        quality: 'cinematic',
+        speed: 'medium'
       },
       heygen: {
-        name: 'HeyGen',
-        endpoint: process.env.HEYGEN_API_ENDPOINT,
+        name: 'HeyGen Avatar',
+        endpoint: process.env.HEYGEN_API_ENDPOINT || 'https://api.heygen.com',
         apiKey: process.env.HEYGEN_API_KEY,
         maxDuration: 900,
-        type: 'longform'
+        type: 'both',
+        bestFor: ['youtube', 'tiktok'],
+        quality: 'avatar',
+        speed: 'medium'
       },
-      fliki: {
-        name: 'Fliki.ai',
-        endpoint: process.env.FLIKI_API_ENDPOINT,
-        apiKey: process.env.FLIKI_API_KEY,
+
+      // --- VOICEOVER ---
+      elevenlabs: {
+        name: 'ElevenLabs Voice',
+        endpoint: process.env.ELEVEN_API_ENDPOINT || 'https://api.elevenlabs.io',
+        apiKey: process.env.ELEVEN_API_KEY,
         maxDuration: 900,
-        type: 'longform'
-      },
-      invideo: {
-        name: 'InVideo AI',
-        endpoint: process.env.INVIDEO_API_ENDPOINT,
-        apiKey: process.env.INVIDEO_API_KEY,
-        maxDuration: 900,
-        type: 'longform'
+        type: 'voiceover',
+        bestFor: ['all'],
+        quality: 'ultra',
+        speed: 'fast'
       }
+    };
+
+    // Recommended provider sets per platform
+    this.platformDefaults = {
+      youtube: ['veo3', 'runway', 'heygen'],
+      tiktok: ['kling_25_turbo', 'seedance', 'ltx_23'],
+      instagram_reels: ['kling_21', 'ltx_23', 'pika'],
+      youtube_shorts: ['kling_16', 'ltx_23', 'seedance']
     };
   }
 
-  /**
-   * Generate video using specified AI provider
-   * @param {Object} params - Generation parameters
-   * @param {string} params.prompt - Video description/prompt
-   * @param {string} params.provider - AI provider (veo3, runway, leonardo, synthesia, etc.)
-   * @param {string} params.format - Video format (longform, shortform, portrait, landscape, extended)
-   * @param {number} params.duration - Video duration in seconds
-   * @param {string} params.aspectRatio - Aspect ratio (16:9, 9:16, 1:1, etc.)
-   * @param {Object} params.style - Style options (cinematic, anime, realistic, etc.)
-   * @param {string} params.userId - User ID
-   * @returns {Promise<Object>} Generation job details
-   */
+  // ----------------------------------------------------------------
+  // PUBLIC METHODS
+  // ----------------------------------------------------------------
+
   async generateVideo(params) {
-    try {
-      const { prompt, provider = 'veo3', format = 'longform', duration, aspectRatio = '16:9', style = {}, userId } = params;
+    const {
+      prompt,
+      provider,
+      format = 'longform',
+      duration,
+      aspectRatio = '16:9',
+      style = {},
+      platform = 'youtube',
+      userId
+    } = params;
 
-      if (!this.providers[provider]) {
-        throw new Error(`Provider ${provider} not supported`);
-      }
+    const resolvedProvider = provider || this._pickBestProvider(platform, format);
 
-      const providerConfig = this.providers[provider];
-      const videoData = {
-        userId,
-        provider,
-        prompt,
-        format,
-        duration: Math.min(duration || providerConfig.maxDuration, providerConfig.maxDuration),
-        aspectRatio,
-        style,
-        status: 'pending',
-        createdAt: new Date(),
-        metadata: {
-          providerName: providerConfig.name,
-          estimatedCompletionTime: this._estimateCompletionTime(provider, duration),
-          isExtendedForm: duration > 300
-        }
-      };
-
-      // Save to database
-      const generation = await VideoGeneration.create(videoData);
-
-      // Dispatch to appropriate provider
-      const jobDetails = await this._dispatchToProvider(provider, {
-        prompt,
-        duration: videoData.duration,
-        aspectRatio,
-        style,
-        generationId: generation._id,
-        isExtendedForm: duration > 300
-      });
-
-      // Update with job ID
-      generation.jobId = jobDetails.jobId;
-      generation.status = 'processing';
-      generation.externalJobUrl = jobDetails.externalJobUrl;
-      await generation.save();
-
-      logger.info(`Video generation started: ${generation._id} on ${provider} (${videoData.duration}s)`);
-
-      return {
-        success: true,
-        generationId: generation._id,
-        jobId: jobDetails.jobId,
-        status: 'processing',
-        estimatedTime: videoData.metadata.estimatedCompletionTime,
-        provider: providerConfig.name,
-        duration: videoData.duration
-      };
-    } catch (error) {
-      logger.error(`Video generation failed: ${error.message}`);
-      throw error;
+    if (!this.providers[resolvedProvider]) {
+      throw new Error(`Provider "${resolvedProvider}" is not supported. Available: ${Object.keys(this.providers).join(', ')}`);
     }
+
+    const config = this.providers[resolvedProvider];
+    const resolvedDuration = Math.min(duration || config.maxDuration, config.maxDuration);
+
+    logger.info(`Dispatching ${format} video to ${config.name} (${resolvedDuration}s) for ${platform}`);
+
+    const dispatchParams = {
+      prompt,
+      duration: resolvedDuration,
+      aspectRatio: aspectRatio || this._aspectRatioForPlatform(platform),
+      style,
+      userId,
+      provider: resolvedProvider,
+      platform,
+      format
+    };
+
+    // Route through Replit worker when configured
+    const jobDetails = replitConnector.isConfigured
+      ? await this._dispatchToReplit(dispatchParams)
+      : await this._dispatchToProvider(resolvedProvider, dispatchParams);
+
+    return {
+      success: true,
+      jobId: jobDetails.jobId,
+      provider: config.name,
+      providerId: resolvedProvider,
+      status: 'processing',
+      estimatedTime: this._estimateTime(resolvedProvider, resolvedDuration),
+      duration: resolvedDuration,
+      platform,
+      format,
+      trackUrl: jobDetails.trackUrl
+    };
   }
 
-  /**
-   * Generate short-form video (TikTok, Shorts, Reels)
-   * @param {Object} params - Parameters
-   * @returns {Promise<Object>}
-   */
   async generateShortForm(params) {
-    const { prompt, style = 'trendy', userId } = params;
-    const shortformProviders = ['leonardo', 'pika', 'kling', 'runway'];
-    const provider = shortformProviders[Math.floor(Math.random() * shortformProviders.length)];
-
+    const platform = params.platform || 'tiktok';
     return this.generateVideo({
       ...params,
-      provider,
       format: 'shortform',
-      duration: 30,
-      aspectRatio: '9:16'
+      duration: params.duration || 30,
+      aspectRatio: '9:16',
+      platform
     });
   }
 
-  /**
-   * Generate long-form video (YouTube, etc.)
-   * @param {Object} params - Parameters
-   * @returns {Promise<Object>}
-   */
   async generateLongForm(params) {
-    const { prompt, style = 'cinematic', userId } = params;
-    const longformProviders = ['veo3', 'runway', 'synthesia'];
-    const provider = longformProviders[Math.floor(Math.random() * longformProviders.length)];
-
+    const platform = params.platform || 'youtube';
     return this.generateVideo({
       ...params,
-      provider,
       format: 'longform',
-      duration: 60,
-      aspectRatio: '16:9'
+      duration: params.duration || 60,
+      aspectRatio: '16:9',
+      platform
     });
   }
 
-  /**
-   * Generate extended/long-form video (10-15 minutes)
-   * Perfect for YouTube, courses, documentaries, vlogs
-   * @param {Object} params - Parameters
-   * @returns {Promise<Object>}
-   */
-  async generateExtendedForm(params) {
-    try {
-      const { 
-        prompt, 
-        duration = 600, // Default 10 minutes
-        style = 'documentary',
-        userId,
-        segments = [],
-        autoGenerateSegments = false,
-        includeVoiceover = false,
-        includeMusic = false,
-        musicGenre = 'cinematic'
-      } = params;
-
-      // Validate duration (10-15 minutes)
-      if (duration < 600 || duration > 900) {
-        throw new Error('Extended form duration must be between 10-15 minutes (600-900 seconds)');
-      }
-
-      // Extended form providers (support longer durations)
-      const extendedFormProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway'];
-      const provider = extendedFormProviders[Math.floor(Math.random() * extendedFormProviders.length)];
-
-      let generatedSegments = segments;
-
-      // Auto-generate segments if not provided
-      if (autoGenerateSegments && (!segments || segments.length === 0)) {
-        generatedSegments = await this._generateVideoSegments(prompt, duration);
-      }
-
-      const videoData = {
-        userId,
-        provider,
-        prompt,
-        format: 'extended',
-        duration,
-        aspectRatio: '16:9',
-        style,
-        status: 'pending',
-        segments: generatedSegments,
-        includeVoiceover,
-        includeMusic,
-        musicGenre,
-        createdAt: new Date(),
-        metadata: {
-          providerName: this.providers[provider].name,
-          estimatedCompletionTime: this._estimateCompletionTime(provider, duration),
-          isExtendedForm: true,
-          totalSegments: generatedSegments.length,
-          durationMinutes: Math.round(duration / 60)
-        }
-      };
-
-      // Save to database
-      const generation = await VideoGeneration.create(videoData);
-
-      // Dispatch to appropriate provider
-      const jobDetails = await this._dispatchToProvider(provider, {
-        prompt,
-        duration,
-        aspectRatio: '16:9',
-        style,
-        generationId: generation._id,
-        isExtendedForm: true,
-        segments: generatedSegments,
-        includeVoiceover,
-        includeMusic,
-        musicGenre
-      });
-
-      // Update with job ID
-      generation.jobId = jobDetails.jobId;
-      generation.status = 'processing';
-      generation.externalJobUrl = jobDetails.externalJobUrl;
-      await generation.save();
-
-      logger.info(`Extended form video generation started: ${generation._id} on ${provider} (${duration}s)`);
-
-      return {
-        success: true,
-        generationId: generation._id,
-        jobId: jobDetails.jobId,
-        status: 'processing',
-        estimatedTime: videoData.metadata.estimatedCompletionTime,
-        provider: this.providers[provider].name,
-        duration: videoData.metadata.durationMinutes,
-        durationUnit: 'minutes',
-        totalSegments: generatedSegments.length,
-        format: 'Extended Form (10-15 minutes)'
-      };
-    } catch (error) {
-      logger.error(`Extended form video generation failed: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Generate video segments for extended form content
-   * @private
-   */
-  async _generateVideoSegments(prompt, totalDuration) {
-    try {
-      // Calculate segments (aim for 2-3 minute segments)
-      const segmentDuration = 120; // 2 minutes per segment
-      const numberOfSegments = Math.ceil(totalDuration / segmentDuration);
-
-      // Create segments array
-      const segments = [];
-      for (let i = 0; i < numberOfSegments; i++) {
-        const segmentPrompt = `${prompt} - Part ${i + 1} of ${numberOfSegments}`;
-        segments.push({
-          id: i + 1,
-          title: `Segment ${i + 1}`,
-          prompt: segmentPrompt,
-          duration: Math.min(segmentDuration, totalDuration - (i * segmentDuration)),
-          order: i + 1,
-          status: 'pending'
-        });
-      }
-
-      logger.info(`Generated ${numberOfSegments} video segments`);
-      return segments;
-    } catch (error) {
-      logger.error(`Segment generation failed: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Generate voiceover using ElevenLabs
-   * @param {Object} params - Parameters
-   * @returns {Promise<Object>}
-   */
   async generateVoiceover(params) {
-    try {
-      const { text, voiceId = 'default', userId } = params;
+    const { text, voiceId = 'EXAVITQu4vr4xnSDxMaL', userId } = params;
+    const config = this.providers.elevenlabs;
 
+    if (!config.apiKey) {
+      throw new Error('ElevenLabs API key not configured');
+    }
+
+    try {
       const response = await axios.post(
-        `${this.providers.eleven.endpoint}/v1/text-to-speech/${voiceId}`,
+        `${config.endpoint}/v1/text-to-speech/${voiceId}`,
         {
           text,
-          model_id: 'eleven_monolingual_v1',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75
-          }
+          model_id: 'eleven_turbo_v2',
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 }
         },
         {
-          headers: {
-            'xi-api-key': this.providers.eleven.apiKey,
-            'Content-Type': 'application/json'
-          },
+          headers: { 'xi-api-key': config.apiKey, 'Content-Type': 'application/json' },
           responseType: 'arraybuffer'
         }
       );
 
-      const voiceoverData = {
-        userId,
-        provider: 'eleven',
-        text,
-        voiceId,
-        audioBuffer: response.data,
-        duration: this._estimateAudioDuration(text),
-        status: 'completed',
-        createdAt: new Date()
-      };
-
-      logger.info(`Voiceover generated successfully for user ${userId}`);
-
       return {
         success: true,
-        audio: response.data,
-        duration: voiceoverData.duration,
+        audio: Buffer.from(response.data).toString('base64'),
+        mimeType: 'audio/mpeg',
+        duration: this._estimateAudioDuration(text),
         provider: 'ElevenLabs'
       };
     } catch (error) {
-      logger.error(`Voiceover generation failed: ${error.message}`);
-      throw error;
+      throw new Error(`Voiceover generation failed: ${error.message}`);
     }
   }
 
-  /**
-   * Check generation status
-   * @param {string} generationId - Generation ID
-   * @returns {Promise<Object>}
-   */
-  async checkStatus(generationId) {
-    try {
-      const generation = await VideoGeneration.findById(generationId);
-
-      if (!generation) {
-        throw new Error('Generation not found');
+  async checkJobStatus(provider, jobId) {
+    // Replit worker jobs have a "replit_" prefix or when connector is active
+    if (replitConnector.isConfigured || jobId.startsWith('replit_')) {
+      try {
+        return await replitConnector.getJobStatus(jobId);
+      } catch (err) {
+        logger.warn(`Replit status check failed, falling back: ${err.message}`);
       }
-
-      // Poll provider for status
-      const status = await this._checkProviderStatus(generation.provider, generation.jobId);
-
-      generation.status = status.status;
-      if (status.videoUrl) {
-        generation.videoUrl = status.videoUrl;
-        generation.completedAt = new Date();
-      }
-      if (status.error) {
-        generation.error = status.error;
-      }
-
-      await generation.save();
-
-      return {
-        generationId,
-        status: generation.status,
-        videoUrl: generation.videoUrl,
-        error: generation.error,
-        provider: generation.provider,
-        format: generation.format,
-        duration: generation.duration
-      };
-    } catch (error) {
-      logger.error(`Status check failed: ${error.message}`);
-      throw error;
     }
-  }
 
-  /**
-   * Dispatch job to provider API
-   * @private
-   */
-  async _dispatchToProvider(provider, params) {
     const config = this.providers[provider];
+    if (!config) throw new Error(`Unknown provider: ${provider}`);
 
-    switch (provider) {
-      case 'veo3':
-        return this._dispatchToVeo3(params);
-      case 'runway':
-        return this._dispatchToRunway(params);
-      case 'leonardo':
-        return this._dispatchToLeonardo(params);
-      case 'synthesia':
-        return this._dispatchToSynthesia(params);
-      case 'pika':
-        return this._dispatchToPika(params);
-      case 'kling':
-        return this._dispatchToKling(params);
-      case 'heygen':
-        return this._dispatchToHeyGen(params);
-      case 'fliki':
-        return this._dispatchToFliki(params);
-      case 'invideo':
-        return this._dispatchToInVideo(params);
-      default:
-        throw new Error(`Dispatch not implemented for ${provider}`);
-    }
-  }
-
-  /**
-   * Dispatch to Veo 3 (Google)
-   * @private
-   */
-  async _dispatchToVeo3(params) {
     try {
-      const response = await axios.post(
-        `${this.providers.veo3.endpoint}/v1/generate`,
-        {
-          prompt: params.prompt,
-          duration: params.duration,
-          aspect_ratio: params.aspectRatio,
-          ...params.style
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.providers.veo3.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.id,
-        externalJobUrl: response.data.job_url
-      };
-    } catch (error) {
-      throw new Error(`Veo3 dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to Runway
-   * @private
-   */
-  async _dispatchToRunway(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.runway.endpoint}/v1/tasks`,
-        {
-          type: params.isExtendedForm ? 'gen3_extended' : 'gen3',
-          prompt: params.prompt,
-          duration: params.duration,
-          aspect_ratio: params.aspectRatio,
-          segments: params.segments
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.providers.runway.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.id,
-        externalJobUrl: `${this.providers.runway.endpoint}/tasks/${response.data.id}`
-      };
-    } catch (error) {
-      throw new Error(`Runway dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to Leonardo.ai
-   * @private
-   */
-  async _dispatchToLeonardo(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.leonardo.endpoint}/api/rest/v1/generation/create`,
-        {
-          prompt: params.prompt,
-          num_images: 1,
-          negative_prompt: 'low quality',
-          sd_version: 'LEONARDO'
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.providers.leonardo.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.sdGenerationJob.generationId,
-        externalJobUrl: `${this.providers.leonardo.endpoint}/api/rest/v1/generation/${response.data.sdGenerationJob.generationId}`
-      };
-    } catch (error) {
-      throw new Error(`Leonardo dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to Synthesia
-   * @private
-   */
-  async _dispatchToSynthesia(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.synthesia.endpoint}/v1/videos`,
-        {
-          title: params.isExtendedForm ? `Extended Video - ${params.generationId}` : 'Generated Video',
-          test: false,
-          visibility: 'private',
-          duration: params.duration,
-          scenes: params.isExtendedForm 
-            ? params.segments.map((seg, idx) => ({
-                script: {
-                  type: 'text',
-                  input: seg.prompt
-                },
-                order: idx
-              }))
-            : [{
-                script: {
-                  type: 'text',
-                  input: params.prompt
-                }
-              }]
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.providers.synthesia.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.id,
-        externalJobUrl: `${this.providers.synthesia.endpoint}/videos/${response.data.id}`
-      };
-    } catch (error) {
-      throw new Error(`Synthesia dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to Pika
-   * @private
-   */
-  async _dispatchToPika(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.pika.endpoint}/v1/generate`,
-        {
-          prompt: params.prompt,
-          duration: params.duration,
-          aspect_ratio: params.aspectRatio
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.providers.pika.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.job_id,
-        externalJobUrl: response.data.status_url
-      };
-    } catch (error) {
-      throw new Error(`Pika dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to Kling AI
-   * @private
-   */
-  async _dispatchToKling(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.kling.endpoint}/v1/videos/generation`,
-        {
-          prompt: params.prompt,
-          duration: params.duration,
-          aspect_ratio: params.aspectRatio,
-          mode: 'std'
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.providers.kling.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.id,
-        externalJobUrl: response.data.url
-      };
-    } catch (error) {
-      throw new Error(`Kling dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to HeyGen
-   * @private
-   */
-  async _dispatchToHeyGen(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.heygen.endpoint}/v1/video_talks/generate`,
-        {
-          script: {
-            type: 'text',
-            input: params.prompt
-          },
-          duration: params.duration,
-          avatar_id: 'default',
-          voice_id: 'default'
-        },
-        {
-          headers: {
-            'X-API-Key': this.providers.heygen.apiKey,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.video_id,
-        externalJobUrl: `${this.providers.heygen.endpoint}/videos/${response.data.video_id}`
-      };
-    } catch (error) {
-      throw new Error(`HeyGen dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to Fliki.ai
-   * @private
-   */
-  async _dispatchToFliki(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.fliki.endpoint}/v1/video`,
-        {
-          script: params.prompt,
-          aspect_ratio: params.aspectRatio === '16:9' ? 'widescreen' : 'portrait',
-          duration: params.duration,
-          background_music: params.includeMusic ? params.musicGenre : 'none'
-        },
-        {
-          headers: {
-            'X-API-Key': this.providers.fliki.apiKey,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.request_id,
-        externalJobUrl: `${this.providers.fliki.endpoint}/api/status/${response.data.request_id}`
-      };
-    } catch (error) {
-      throw new Error(`Fliki dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Dispatch to InVideo AI
-   * @private
-   */
-  async _dispatchToInVideo(params) {
-    try {
-      const response = await axios.post(
-        `${this.providers.invideo.endpoint}/v1/template/render`,
-        {
-          title: `Video - ${params.generationId}`,
-          description: params.prompt,
-          content: params.prompt,
-          duration: params.duration,
-          template: params.isExtendedForm ? 'long_form' : 'standard',
-          voice_over: params.includeVoiceover,
-          music: params.includeMusic ? params.musicGenre : 'none'
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.providers.invideo.apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      return {
-        jobId: response.data.render_id,
-        externalJobUrl: `${this.providers.invideo.endpoint}/renders/${response.data.render_id}`
-      };
-    } catch (error) {
-      throw new Error(`InVideo dispatch failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Check provider status
-   * @private
-   */
-  async _checkProviderStatus(provider, jobId) {
-    // Implementation would vary by provider
-    // This is a template
-    try {
-      const config = this.providers[provider];
-      const response = await axios.get(
-        `${config.endpoint}/v1/jobs/${jobId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${config.apiKey}`
-          }
-        }
-      );
-
-      return {
-        status: response.data.status,
-        videoUrl: response.data.output_url,
-        error: response.data.error
-      };
+      const statusUrl = this._statusUrl(provider, jobId, config);
+      const response = await axios.get(statusUrl, {
+        headers: this._authHeaders(provider, config)
+      });
+      return this._normalizeStatus(provider, response.data);
     } catch (error) {
       throw new Error(`Status check failed for ${provider}: ${error.message}`);
     }
   }
 
-  /**
-   * Estimate completion time
-   * @private
-   */
-  _estimateCompletionTime(provider, duration) {
-    const baseTimes = {
-      veo3: 120, // 2 minutes
-      runway: 180, // 3 minutes
-      leonardo: 60, // 1 minute
-      synthesia: 150, // 2.5 minutes
-      pika: 90, // 1.5 minutes
-      kling: 120, // 2 minutes
-      heygen: 300, // 5 minutes
-      fliki: 240, // 4 minutes
-      invideo: 360, // 6 minutes
-      eleven: 30 // 30 seconds
-    };
-
-    const baseTime = baseTimes[provider] || 120;
-    
-    // Extended form takes longer
-    if (duration > 300) {
-      return baseTime * 3 + (Math.ceil(duration / 60) * 30);
-    }
-
-    return baseTime + (duration ? Math.ceil(duration / 10) * 10 : 0);
-  }
-
-  /**
-   * Estimate audio duration
-   * @private
-   */
-  _estimateAudioDuration(text) {
-    // Rough estimate: 150 words per minute
-    const words = text.split(/\s+/).length;
-    return Math.ceil((words / 150) * 60);
-  }
-
-  /**
-   * Get available providers
-   */
   getProviders() {
-    return Object.entries(this.providers).map(([key, config]) => ({
-      id: key,
-      name: config.name,
-      type: config.type,
-      maxDuration: config.maxDuration,
-      maxDurationMinutes: Math.round(config.maxDuration / 60)
+    return Object.entries(this.providers).map(([id, cfg]) => ({
+      id,
+      name: cfg.name,
+      type: cfg.type,
+      maxDuration: cfg.maxDuration,
+      maxDurationMinutes: Math.round(cfg.maxDuration / 60),
+      bestFor: cfg.bestFor,
+      quality: cfg.quality,
+      speed: cfg.speed,
+      isConfigured: !!cfg.apiKey,
+      routedViaReplit: replitConnector.isConfigured
     }));
   }
 
-  /**
-   * Get extended form providers (supports 10-15 minutes)
-   */
-  getExtendedFormProviders() {
-    const extendedProviders = ['synthesia', 'heygen', 'fliki', 'invideo', 'runway'];
-    return this.getProviders().filter(p => extendedProviders.includes(p.id));
+  // Dispatch to Replit worker
+  async _dispatchToReplit(params) {
+    try {
+      return await replitConnector.dispatch(params);
+    } catch (err) {
+      logger.warn(`Replit dispatch failed (${err.message}), falling back to local simulation`);
+      return this._simulateJob(params.provider, params);
+    }
   }
 
-  /**
-   * Get generation history
-   */
-  async getGenerationHistory(userId, limit = 20, format = null) {
-    let query = { userId };
-    if (format) {
-      query.format = format;
-    }
+  getProvidersForPlatform(platform) {
+    const defaults = this.platformDefaults[platform] || this.platformDefaults.youtube;
+    return this.getProviders().filter(p => defaults.includes(p.id));
+  }
 
-    return await VideoGeneration.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit);
+  // ----------------------------------------------------------------
+  // PRIVATE METHODS
+  // ----------------------------------------------------------------
+
+  _pickBestProvider(platform, format) {
+    const candidates = this.platformDefaults[platform] || this.platformDefaults.youtube;
+    // Prefer first configured provider
+    const configured = candidates.find(id => !!this.providers[id]?.apiKey);
+    // Fall back to first in list even if not configured (dev mode)
+    return configured || candidates[0];
+  }
+
+  _aspectRatioForPlatform(platform) {
+    const map = {
+      youtube: '16:9',
+      tiktok: '9:16',
+      instagram_reels: '9:16',
+      youtube_shorts: '9:16'
+    };
+    return map[platform] || '16:9';
+  }
+
+  async _dispatchToProvider(provider, params) {
+    switch (provider) {
+      case 'kling_16':
+      case 'kling_21':
+      case 'kling_25_turbo':
+        return this._dispatchKling(provider, params);
+      case 'ltx_23':
+        return this._dispatchLTX(params);
+      case 'seedance':
+        return this._dispatchSeedance(params);
+      case 'veo3':
+        return this._dispatchVeo3(params);
+      case 'runway':
+        return this._dispatchRunway(params);
+      case 'heygen':
+        return this._dispatchHeyGen(params);
+      case 'pika':
+        return this._dispatchPika(params);
+      default:
+        // Simulate a job for unconfigured providers in dev mode
+        return this._simulateJob(provider, params);
+    }
+  }
+
+  async _dispatchKling(provider, params) {
+    const config = this.providers[provider];
+    const modelMap = {
+      kling_16: 'kling-v1.6',
+      kling_21: 'kling-v2.1',
+      kling_25_turbo: 'kling-v2.5-turbo'
+    };
+
+    try {
+      const response = await axios.post(
+        `${config.endpoint}/v1/videos/text2video`,
+        {
+          model_name: modelMap[provider],
+          prompt: params.prompt,
+          negative_prompt: 'low quality, blurry, distorted',
+          cfg_scale: 0.5,
+          mode: 'std',
+          aspect_ratio: params.aspectRatio === '9:16' ? '9:16' : '16:9',
+          duration: Math.min(params.duration, 10)
+        },
+        { headers: { 'Authorization': `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' } }
+      );
+
+      return {
+        jobId: response.data.data?.task_id || response.data.id,
+        trackUrl: `${config.endpoint}/v1/videos/text2video/${response.data.data?.task_id}`
+      };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') return this._simulateJob(provider, params);
+      throw new Error(`Kling dispatch failed: ${error.message}`);
+    }
+  }
+
+  async _dispatchLTX(params) {
+    const config = this.providers.ltx_23;
+    try {
+      const response = await axios.post(
+        `${config.endpoint}/v1/generate`,
+        {
+          prompt: params.prompt,
+          negative_prompt: 'low quality, distorted',
+          duration: params.duration,
+          aspect_ratio: params.aspectRatio,
+          model: 'ltx-video-2.3-pro'
+        },
+        { headers: { 'Authorization': `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' } }
+      );
+
+      return { jobId: response.data.id, trackUrl: response.data.status_url };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') return this._simulateJob('ltx_23', params);
+      throw new Error(`LTX dispatch failed: ${error.message}`);
+    }
+  }
+
+  async _dispatchSeedance(params) {
+    const config = this.providers.seedance;
+    try {
+      const response = await axios.post(
+        `${config.endpoint}/v1/text2video`,
+        {
+          prompt: params.prompt,
+          duration: params.duration,
+          resolution: params.aspectRatio === '9:16' ? '720x1280' : '1280x720',
+          model: 'seedance-1.0-pro'
+        },
+        { headers: { 'Authorization': `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' } }
+      );
+
+      return { jobId: response.data.task_id, trackUrl: response.data.polling_url };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') return this._simulateJob('seedance', params);
+      throw new Error(`Seedance dispatch failed: ${error.message}`);
+    }
+  }
+
+  async _dispatchVeo3(params) {
+    const config = this.providers.veo3;
+    try {
+      const response = await axios.post(
+        `${config.endpoint}/v1/generate`,
+        {
+          prompt: params.prompt,
+          duration_seconds: params.duration,
+          aspect_ratio: params.aspectRatio,
+          model: 'veo-3.1-lite'
+        },
+        { headers: { 'Authorization': `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' } }
+      );
+
+      return { jobId: response.data.operation_id, trackUrl: response.data.operation_url };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') return this._simulateJob('veo3', params);
+      throw new Error(`Veo3 dispatch failed: ${error.message}`);
+    }
+  }
+
+  async _dispatchRunway(params) {
+    const config = this.providers.runway;
+    try {
+      const response = await axios.post(
+        `${config.endpoint}/v1/tasks`,
+        {
+          type: 'gen4_turbo',
+          prompt: params.prompt,
+          duration: params.duration,
+          ratio: params.aspectRatio === '9:16' ? '768:1280' : '1280:768'
+        },
+        { headers: { 'Authorization': `Bearer ${config.apiKey}`, 'X-Runway-Version': '2024-11-06', 'Content-Type': 'application/json' } }
+      );
+
+      return { jobId: response.data.id, trackUrl: `${config.endpoint}/v1/tasks/${response.data.id}` };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') return this._simulateJob('runway', params);
+      throw new Error(`Runway dispatch failed: ${error.message}`);
+    }
+  }
+
+  async _dispatchHeyGen(params) {
+    const config = this.providers.heygen;
+    try {
+      const response = await axios.post(
+        `${config.endpoint}/v2/video/generate`,
+        {
+          video_inputs: [{
+            character: { type: 'avatar', avatar_id: 'Daisy-inskirt-20220818', scale: 1 },
+            voice: { type: 'text', input_text: params.prompt, voice_id: '2d5b0e6cf36f460aa7fc47e3eee4ba54' }
+          }],
+          dimension: { width: params.aspectRatio === '9:16' ? 720 : 1280, height: params.aspectRatio === '9:16' ? 1280 : 720 }
+        },
+        { headers: { 'X-Api-Key': config.apiKey, 'Content-Type': 'application/json' } }
+      );
+
+      return { jobId: response.data.data?.video_id, trackUrl: `${config.endpoint}/v1/video_status.get?video_id=${response.data.data?.video_id}` };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') return this._simulateJob('heygen', params);
+      throw new Error(`HeyGen dispatch failed: ${error.message}`);
+    }
+  }
+
+  async _dispatchPika(params) {
+    const config = this.providers.pika;
+    try {
+      const response = await axios.post(
+        `${config.endpoint}/v1/generate`,
+        { prompt: params.prompt, duration: params.duration, aspect_ratio: params.aspectRatio },
+        { headers: { 'Authorization': `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' } }
+      );
+
+      return { jobId: response.data.job_id, trackUrl: response.data.status_url };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') return this._simulateJob('pika', params);
+      throw new Error(`Pika dispatch failed: ${error.message}`);
+    }
+  }
+
+  // Simulates a job in development when no API key is set
+  _simulateJob(provider, params) {
+    const fakeId = `dev_${provider}_${Date.now()}`;
+    logger.info(`[DEV] Simulated job for ${provider}: ${fakeId}`);
+    return { jobId: fakeId, trackUrl: `http://localhost:5000/api/video/dev-status/${fakeId}` };
+  }
+
+  _statusUrl(provider, jobId, config) {
+    const urlMap = {
+      kling_16: `${config.endpoint}/v1/videos/text2video/${jobId}`,
+      kling_21: `${config.endpoint}/v1/videos/text2video/${jobId}`,
+      kling_25_turbo: `${config.endpoint}/v1/videos/text2video/${jobId}`,
+      ltx_23: `${config.endpoint}/v1/jobs/${jobId}`,
+      seedance: `${config.endpoint}/v1/status/${jobId}`,
+      veo3: `${config.endpoint}/v1/operations/${jobId}`,
+      runway: `${config.endpoint}/v1/tasks/${jobId}`,
+      heygen: `${config.endpoint}/v1/video_status.get?video_id=${jobId}`,
+      pika: `${config.endpoint}/v1/job/${jobId}`
+    };
+    return urlMap[provider] || `${config.endpoint}/v1/status/${jobId}`;
+  }
+
+  _authHeaders(provider, config) {
+    if (['heygen'].includes(provider)) return { 'X-Api-Key': config.apiKey };
+    return { 'Authorization': `Bearer ${config.apiKey}` };
+  }
+
+  _normalizeStatus(provider, data) {
+    // Normalize each provider's status format to a common shape
+    const kling = ['kling_16', 'kling_21', 'kling_25_turbo'];
+    if (kling.includes(provider)) {
+      const task = data.data || data;
+      return {
+        status: task.task_status === 'succeed' ? 'completed' : task.task_status === 'failed' ? 'failed' : 'processing',
+        videoUrl: task.task_result?.videos?.[0]?.url,
+        error: task.task_status_msg
+      };
+    }
+    if (provider === 'runway') {
+      return {
+        status: data.status === 'SUCCEEDED' ? 'completed' : data.status === 'FAILED' ? 'failed' : 'processing',
+        videoUrl: data.output?.[0],
+        error: data.failure
+      };
+    }
+    if (provider === 'heygen') {
+      return {
+        status: data.data?.status === 'completed' ? 'completed' : data.data?.status === 'failed' ? 'failed' : 'processing',
+        videoUrl: data.data?.video_url,
+        error: data.data?.error
+      };
+    }
+    // Default fallback
+    return {
+      status: data.status === 'completed' || data.status === 'done' ? 'completed' : 'processing',
+      videoUrl: data.video_url || data.output_url || data.url,
+      error: data.error
+    };
+  }
+
+  _estimateTime(provider, duration) {
+    const baseTimes = {
+      kling_16: 60, kling_21: 90, kling_25_turbo: 45,
+      ltx_23: 30, seedance: 25, pika: 45,
+      veo3: 120, runway: 150, heygen: 300
+    };
+    return (baseTimes[provider] || 90) + Math.ceil(duration / 10) * 5;
+  }
+
+  _estimateAudioDuration(text) {
+    return Math.ceil((text.split(/\s+/).length / 150) * 60);
   }
 }
 
