@@ -171,16 +171,196 @@ export function isInBounds(r, c) {
   return r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS;
 }
 
-export function renderWorld(ctx, grid) {
+// Deterministic per-tile pseudo-random float in [0, 1), keyed by a salt so a
+// tile can draw several independent "random" values without them all moving
+// together. Used for texture jitter that must stay stable across redraws
+// (a plain Math.random() would make grass/rock speckle crawl every tick).
+export function tileRand(r, c, salt) {
+  let h = (r * 92821 + c * 68917 + salt * 2654435761) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 3266489917);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+const GRASS_BLADE = "#3d6a33";
+const GRASS_BLADE_LIGHT = "#6a9a55";
+const FOREST_CANOPY = ["#25501f", "#336b2b", "#2c5e26"];
+const FOREST_TRUNK = "#4a3423";
+const ROCK_SPECKLE_DARK = "#5f5f5a";
+const ROCK_SPECKLE_LIGHT = "#9a9a94";
+const ROAD_TREAD = "#47473f";
+const HOUSE_ROOF = "#5c3a26";
+const HOUSE_WALL = "#a97a52";
+const HOUSE_DOOR = "#3a2415";
+const ASH_CRACK = "#1f1c19";
+const FIREBREAK_SCRAPE = "#8a7550";
+
+function drawGrass(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.GRASS];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  for (let i = 0; i < 4; i++) {
+    const bx = x + tileRand(r, c, i * 3 + 1) * TILE_SIZE;
+    const by = y + tileRand(r, c, i * 3 + 2) * TILE_SIZE;
+    const h = 3 + tileRand(r, c, i * 3 + 3) * 4;
+    ctx.strokeStyle = i % 2 === 0 ? GRASS_BLADE : GRASS_BLADE_LIGHT;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - 1 + tileRand(r, c, i * 3 + 4) * 2, by - h);
+    ctx.stroke();
+  }
+}
+
+function drawForest(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.GRASS];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+
+  ctx.fillStyle = FOREST_TRUNK;
+  ctx.fillRect(x + TILE_SIZE / 2 - 1, y + TILE_SIZE * 0.55, 2, TILE_SIZE * 0.4);
+
+  for (let i = 0; i < 3; i++) {
+    const cx = x + TILE_SIZE * (0.3 + tileRand(r, c, i * 5 + 1) * 0.4);
+    const cy = y + TILE_SIZE * (0.25 + tileRand(r, c, i * 5 + 2) * 0.3);
+    const radius = TILE_SIZE * (0.28 + tileRand(r, c, i * 5 + 3) * 0.14);
+    ctx.fillStyle = FOREST_CANOPY[i % FOREST_CANOPY.length];
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawRock(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.ROCK];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  for (let i = 0; i < 4; i++) {
+    const dx = x + tileRand(r, c, i * 4 + 1) * TILE_SIZE;
+    const dy = y + tileRand(r, c, i * 4 + 2) * TILE_SIZE;
+    const radius = 1 + tileRand(r, c, i * 4 + 3) * 1.8;
+    ctx.fillStyle = i % 2 === 0 ? ROCK_SPECKLE_DARK : ROCK_SPECKLE_LIGHT;
+    ctx.beginPath();
+    ctx.arc(dx, dy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawWaterBase(ctx, x, y, r, c) {
+  const grad = ctx.createLinearGradient(x, y, x, y + TILE_SIZE);
+  grad.addColorStop(0, "#3a86bd");
+  grad.addColorStop(1, "#204f75");
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+}
+
+function drawRoad(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.ROAD];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  ctx.strokeStyle = ROAD_TREAD;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 2; i++) {
+    const ly = y + TILE_SIZE * (0.3 + i * 0.4) + (tileRand(r, c, i + 1) - 0.5) * 3;
+    ctx.beginPath();
+    ctx.moveTo(x + 2, ly);
+    ctx.lineTo(x + TILE_SIZE - 2, ly);
+    ctx.stroke();
+  }
+}
+
+function drawHouse(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.GRASS];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  ctx.fillStyle = HOUSE_WALL;
+  ctx.fillRect(x + 2, y + TILE_SIZE * 0.45, TILE_SIZE - 4, TILE_SIZE * 0.5);
+  ctx.fillStyle = HOUSE_ROOF;
+  ctx.beginPath();
+  ctx.moveTo(x + 1, y + TILE_SIZE * 0.45);
+  ctx.lineTo(x + TILE_SIZE / 2, y + 2);
+  ctx.lineTo(x + TILE_SIZE - 1, y + TILE_SIZE * 0.45);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = HOUSE_DOOR;
+  ctx.fillRect(x + TILE_SIZE / 2 - 2, y + TILE_SIZE * 0.72, 4, TILE_SIZE * 0.23);
+}
+
+function drawEvac(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.EVAC];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.font = `bold ${TILE_SIZE * 0.55}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("H", x + TILE_SIZE / 2, y + TILE_SIZE / 2 + 1);
+}
+
+function drawAsh(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.ASH];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  ctx.strokeStyle = ASH_CRACK;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 2; i++) {
+    const sx = x + tileRand(r, c, i * 6 + 1) * TILE_SIZE;
+    const sy = y + tileRand(r, c, i * 6 + 2) * TILE_SIZE;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + (tileRand(r, c, i * 6 + 3) - 0.5) * 10, sy + (tileRand(r, c, i * 6 + 4) - 0.5) * 10);
+    ctx.stroke();
+  }
+}
+
+function drawFirebreak(ctx, x, y, r, c) {
+  ctx.fillStyle = TILE_COLORS[TILE.FIREBREAK];
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  ctx.strokeStyle = FIREBREAK_SCRAPE;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const ly = y + (i + 1) * (TILE_SIZE / 4);
+    ctx.beginPath();
+    ctx.moveTo(x + 1, ly + (tileRand(r, c, i + 10) - 0.5) * 2);
+    ctx.lineTo(x + TILE_SIZE - 1, ly + (tileRand(r, c, i + 20) - 0.5) * 2);
+    ctx.stroke();
+  }
+}
+
+function drawBurning(ctx, x, y, r, c) {
+  ctx.fillStyle = "#3a1f10";
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+}
+
+const TILE_DRAWERS = {
+  [TILE.GRASS]: drawGrass,
+  [TILE.FOREST]: drawForest,
+  [TILE.ROCK]: drawRock,
+  [TILE.WATER]: drawWaterBase,
+  [TILE.ROAD]: drawRoad,
+  [TILE.HOUSE]: drawHouse,
+  [TILE.EVAC]: drawEvac,
+  [TILE.ASH]: drawAsh,
+  [TILE.FIREBREAK]: drawFirebreak,
+  [TILE.BURNING]: drawBurning,
+};
+
+// Detailed, deterministic per-tile art. Expensive relative to a flat fill,
+// so callers should render this to an offscreen canvas on world-state
+// change (sim tick) rather than every animation frame, then blit the result.
+export function renderTerrain(ctx, grid) {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const tile = grid[r][c];
-      ctx.fillStyle = TILE_COLORS[tile.type] || "#000";
-      ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      const draw = TILE_DRAWERS[tile.type];
+      const x = c * TILE_SIZE;
+      const y = r * TILE_SIZE;
+      if (draw) draw(ctx, x, y, r, c);
+      else {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+      }
 
       if (tile.type === TILE.ASH && tile.ash > 0) {
         ctx.fillStyle = `rgba(255,120,40,${Math.min(0.4, tile.ash / 20)})`;
-        ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
       }
     }
   }
