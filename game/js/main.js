@@ -1,22 +1,16 @@
-import {
-  TILE,
-  TILE_SIZE,
-  PREP_PHASE_SECONDS,
-  TICK_MS,
-  PLAYER_START,
-  IGNITION_POINT,
-} from "./config.js";
-import { createWorld, renderTerrain, tileRand } from "./world.js";
+import * as THREE from "./vendor/three.module.min.js";
+import { TILE, PREP_PHASE_SECONDS, TICK_MS, PLAYER_START, IGNITION_POINT, EYE_HEIGHT } from "./config.js";
+import { createWorld } from "./world.js";
 import { FireSystem } from "./fire.js";
 import { Player } from "./player.js";
+import { createRenderer, createCamera, buildWorldScene } from "./scene3d.js";
+import { createFireEffects } from "./fireFx.js";
+import { MouseLookControls } from "./controls.js";
 
 const canvas = document.getElementById("game-canvas");
-const ctx = canvas.getContext("2d");
-
-const terrainCanvas = document.createElement("canvas");
-terrainCanvas.width = canvas.width;
-terrainCanvas.height = canvas.height;
-const terrainCtx = terrainCanvas.getContext("2d");
+const renderer = createRenderer(canvas);
+const camera = createCamera();
+const controls = new MouseLookControls(canvas);
 
 const els = {
   health: document.getElementById("bar-health"),
@@ -34,46 +28,42 @@ const els = {
   overlayTitle: document.getElementById("overlay-title"),
   overlayText: document.getElementById("overlay-text"),
   overlayRestart: document.getElementById("overlay-restart"),
+  lockPrompt: document.getElementById("lock-prompt"),
+  crosshair: document.getElementById("crosshair"),
 };
 
-const KEY_MOVES = {
-  ArrowUp: [-1, 0], w: [-1, 0], W: [-1, 0],
-  ArrowDown: [1, 0], s: [1, 0], S: [1, 0],
-  ArrowLeft: [0, -1], a: [0, -1], A: [0, -1],
-  ArrowRight: [0, 1], d: [0, 1], D: [0, 1],
+const MOVE_KEYS = {
+  w: "forward", W: "forward", ArrowUp: "forward",
+  s: "back", S: "back", ArrowDown: "back",
+  a: "left", A: "left", ArrowLeft: "left",
+  d: "right", D: "right", ArrowRight: "right",
 };
-
-const MAX_EMBERS = 220;
-const MAX_SMOKE_PUFFS = 90;
 
 let state;
 
-function redrawTerrain() {
-  renderTerrain(terrainCtx, state.grid);
-  state.waterTiles = [];
-  for (let r = 0; r < state.grid.length; r++) {
-    for (let c = 0; c < state.grid[0].length; c++) {
-      if (state.grid[r][c].type === TILE.WATER) state.waterTiles.push([r, c]);
-    }
-  }
-}
-
 function newGame() {
   const grid = createWorld();
+  const world = buildWorldScene(grid);
+  const fireFx = createFireEffects(world.scene);
+
+  // Face the player roughly toward the evac zone (up and to the right).
+  const startYaw = -Math.PI * 0.72;
+
   state = {
     grid,
-    player: new Player(PLAYER_START.row, PLAYER_START.col),
+    world,
+    fireFx,
+    player: new Player(PLAYER_START.row, PLAYER_START.col, startYaw),
     fire: new FireSystem(grid, { windDx: 1, windDy: -1 }),
     phase: "prep",
     prepSecondsLeft: PREP_PHASE_SECONDS,
     ended: false,
+    won: false,
     keysHeld: new Set(),
-    waterTiles: [],
-    embers: [],
-    smokePuffs: [],
     lastFrameAt: performance.now(),
   };
-  redrawTerrain();
+
+  controls.setYaw(startYaw);
   els.overlay.classList.add("hidden");
   state.player.log("Wildfire risk detected nearby. Prepare before it ignites.");
 }
@@ -81,7 +71,9 @@ function newGame() {
 function endGame(won) {
   if (state.ended) return;
   state.ended = true;
+  state.won = won;
   els.overlay.classList.remove("hidden");
+  document.exitPointerLock();
   if (won) {
     els.overlayTitle.textContent = "You made it out alive.";
     els.overlayText.textContent =
@@ -94,7 +86,7 @@ function endGame(won) {
 }
 
 function simulationTick() {
-  const { player, grid, fire } = state;
+  const { player, grid, fire, world } = state;
   if (state.ended) return;
 
   if (state.phase === "prep") {
@@ -109,276 +101,39 @@ function simulationTick() {
   }
 
   player.tick(grid, fire);
-  redrawTerrain();
+  world.sync(grid);
 
   if (!player.alive) {
     endGame(false);
     return;
   }
-  if (grid[player.row][player.col].type === TILE.EVAC) {
+  const { row, col } = player.currentTile();
+  if (grid[row][col].type === TILE.EVAC) {
     endGame(true);
   }
 }
 
-function handleInput(now) {
+function handleInput(dt) {
   const { player, grid, keysHeld } = state;
-  let dr = 0;
-  let dc = 0;
-  for (const k of keysHeld) {
-    const move = KEY_MOVES[k];
-    if (move) {
-      dr += move[0];
-      dc += move[1];
-    }
-  }
-  dr = Math.max(-1, Math.min(1, dr));
-  dc = Math.max(-1, Math.min(1, dc));
-  if (dr !== 0 || dc !== 0) {
-    player.tryMove(dr, dc, grid, now);
-  }
+  let forward = 0;
+  let strafe = 0;
+  if (keysHeld.has("forward")) forward += 1;
+  if (keysHeld.has("back")) forward -= 1;
+  if (keysHeld.has("right")) strafe += 1;
+  if (keysHeld.has("left")) strafe -= 1;
+  player.move(forward, strafe, controls.yaw, dt, grid);
 }
 
-function spawnEmbers(now) {
-  if (state.embers.length >= MAX_EMBERS) return;
-  for (const [k] of state.fire.burning) {
-    if (Math.random() > 0.35) continue;
-    const [r, c] = k.split(",").map(Number);
-    state.embers.push({
-      x: c * TILE_SIZE + TILE_SIZE / 2 + (Math.random() - 0.5) * TILE_SIZE * 0.6,
-      y: r * TILE_SIZE + TILE_SIZE * 0.3,
-      vx: (Math.random() - 0.5) * 12,
-      vy: -20 - Math.random() * 18,
-      life: 0.7 + Math.random() * 0.6,
-      maxLife: 0.7 + Math.random() * 0.6,
-      size: 1 + Math.random() * 1.5,
-    });
-  }
-}
-
-function spawnSmoke() {
-  if (state.smokePuffs.length >= MAX_SMOKE_PUFFS) return;
-  for (const [k] of state.fire.burning) {
-    if (Math.random() > 0.06) continue;
-    const [r, c] = k.split(",").map(Number);
-    state.smokePuffs.push({
-      x: c * TILE_SIZE + TILE_SIZE / 2,
-      y: r * TILE_SIZE,
-      vx: (Math.random() - 0.5) * 6,
-      vy: -9 - Math.random() * 6,
-      life: 3 + Math.random() * 2,
-      maxLife: 3 + Math.random() * 2,
-      size: TILE_SIZE * (0.5 + Math.random() * 0.4),
-    });
-  }
-}
-
-function updateParticles(dt) {
-  spawnEmbers();
-  spawnSmoke();
-
-  state.embers = state.embers.filter((e) => e.life > 0);
-  for (const e of state.embers) {
-    e.x += e.vx * dt;
-    e.y += e.vy * dt;
-    e.vy += 6 * dt;
-    e.life -= dt;
-  }
-
-  state.smokePuffs = state.smokePuffs.filter((s) => s.life > 0);
-  for (const s of state.smokePuffs) {
-    s.x += (s.vx + Math.sin(performance.now() / 600 + s.y) * 4) * dt;
-    s.y += s.vy * dt;
-    s.size += dt * 6;
-    s.life -= dt;
-  }
-}
-
-function drawWaterShimmer(now) {
-  ctx.save();
-  for (const [r, c] of state.waterTiles) {
-    const x = c * TILE_SIZE;
-    const y = r * TILE_SIZE;
-    const phase = tileRand(r, c, 42) * Math.PI * 2;
-    const glint = 0.15 + 0.15 * (0.5 + 0.5 * Math.sin(now / 500 + phase));
-    ctx.fillStyle = `rgba(255,255,255,${glint.toFixed(3)})`;
-    const bandY = y + ((now / 900 + tileRand(r, c, 7)) % 1) * TILE_SIZE;
-    ctx.fillRect(x, bandY, TILE_SIZE, 2);
-  }
-  ctx.restore();
-}
-
-function drawFire(now) {
-  ctx.save();
-  for (const [k] of state.fire.burning) {
-    const [r, c] = k.split(",").map(Number);
-    const cx = c * TILE_SIZE + TILE_SIZE / 2;
-    const cy = r * TILE_SIZE + TILE_SIZE / 2;
-    const phase = tileRand(r, c, 3) * Math.PI * 2;
-    const flicker = 0.75 + 0.25 * Math.sin(now / 110 + phase * 3);
-    const outerR = TILE_SIZE * 0.75 * flicker;
-
-    const outer = ctx.createRadialGradient(cx, cy + TILE_SIZE * 0.15, 0, cx, cy + TILE_SIZE * 0.15, outerR);
-    outer.addColorStop(0, "rgba(255,220,120,0.95)");
-    outer.addColorStop(0.35, "rgba(255,140,30,0.85)");
-    outer.addColorStop(0.75, "rgba(200,50,10,0.55)");
-    outer.addColorStop(1, "rgba(200,50,10,0)");
-    ctx.fillStyle = outer;
-    ctx.beginPath();
-    ctx.arc(cx, cy + TILE_SIZE * 0.15, outerR, 0, Math.PI * 2);
-    ctx.fill();
-
-    const coreR = TILE_SIZE * 0.28 * flicker;
-    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
-    core.addColorStop(0, "rgba(255,255,230,0.95)");
-    core.addColorStop(1, "rgba(255,200,80,0)");
-    ctx.fillStyle = core;
-    ctx.beginPath();
-    ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-function drawParticles() {
-  ctx.save();
-  for (const s of state.smokePuffs) {
-    const alpha = Math.min(0.35, (s.life / s.maxLife) * 0.35);
-    const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.size);
-    grad.addColorStop(0, `rgba(90,90,90,${alpha})`);
-    grad.addColorStop(1, "rgba(90,90,90,0)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  for (const e of state.embers) {
-    const alpha = Math.max(0, e.life / e.maxLife);
-    ctx.fillStyle = `rgba(255,${170 + Math.floor(alpha * 60)},${60 * alpha},${alpha})`;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-function drawEvacBeacon(now) {
-  ctx.save();
-  for (let r = 0; r < state.grid.length; r++) {
-    for (let c = 0; c < state.grid[0].length; c++) {
-      if (state.grid[r][c].type !== TILE.EVAC) continue;
-      const x = c * TILE_SIZE;
-      const y = r * TILE_SIZE;
-      const pulse = 0.5 + Math.sin(now / 300) * 0.4;
-      ctx.strokeStyle = `rgba(80, 200, 255, ${pulse})`;
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2);
-
-      const ring = (now / 900) % 1;
-      ctx.strokeStyle = `rgba(140, 220, 255, ${1 - ring})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x + TILE_SIZE / 2, y + TILE_SIZE / 2, TILE_SIZE * (0.4 + ring * 1.4), 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
-  ctx.restore();
-}
-
-function drawPlayer(now) {
+function updateCamera() {
   const { player } = state;
-  const bob = Math.sin(now / 220) * 1.4;
-  const px = player.col * TILE_SIZE + TILE_SIZE / 2;
-  const py = player.row * TILE_SIZE + TILE_SIZE / 2 + bob;
-
-  ctx.save();
-
-  // Contact shadow.
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.beginPath();
-  ctx.ellipse(px, player.row * TILE_SIZE + TILE_SIZE * 0.82, TILE_SIZE * 0.32, TILE_SIZE * 0.14, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Backpack.
-  ctx.fillStyle = "#6b4a2c";
-  ctx.fillRect(px - TILE_SIZE * 0.16, py - TILE_SIZE * 0.02, TILE_SIZE * 0.14, TILE_SIZE * 0.3);
-
-  // Facing wedge (a subtle direction cue behind the body).
-  if (player.alive) {
-    ctx.fillStyle = "rgba(255, 224, 138, 0.45)";
-    const wx = px + player.facing.dc * TILE_SIZE * 0.55;
-    const wy = py + player.facing.dr * TILE_SIZE * 0.55;
-    ctx.beginPath();
-    ctx.moveTo(px, py);
-    ctx.lineTo(wx + player.facing.dc * 2 - player.facing.dr * 5, wy + player.facing.dr * 2 + player.facing.dc * 5);
-    ctx.lineTo(wx + player.facing.dc * 2 + player.facing.dr * 5, wy + player.facing.dr * 2 - player.facing.dc * 5);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // Cloak / body.
-  ctx.fillStyle = player.alive ? "#3f6f8f" : "#5a5a5a";
-  ctx.strokeStyle = "#1a1a1a";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(px, py - TILE_SIZE * 0.05);
-  ctx.quadraticCurveTo(px - TILE_SIZE * 0.32, py + TILE_SIZE * 0.2, px - TILE_SIZE * 0.22, py + TILE_SIZE * 0.4);
-  ctx.lineTo(px + TILE_SIZE * 0.22, py + TILE_SIZE * 0.4);
-  ctx.quadraticCurveTo(px + TILE_SIZE * 0.32, py + TILE_SIZE * 0.2, px, py - TILE_SIZE * 0.05);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // Head.
-  ctx.fillStyle = "#ffe08a";
-  ctx.beginPath();
-  ctx.arc(px, py - TILE_SIZE * 0.18, TILE_SIZE * 0.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-function render(now) {
-  const { player } = state;
-
-  ctx.drawImage(terrainCanvas, 0, 0);
-  drawWaterShimmer(now);
-  drawEvacBeacon(now);
-  drawFire(now);
-  drawParticles();
-  drawPlayer(now);
-
-  // Wildfire sky-glow: ambient warmth that grows with how much is burning.
-  const heat = Math.min(1, state.fire.activeFireCount() / 40);
-  if (heat > 0) {
-    ctx.save();
-    ctx.fillStyle = `rgba(255, 100, 20, ${(heat * 0.12).toFixed(3)})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-  }
-
-  // Vignette.
-  ctx.save();
-  const vignette = ctx.createRadialGradient(
-    canvas.width / 2, canvas.height / 2, canvas.height * 0.35,
-    canvas.width / 2, canvas.height / 2, canvas.height * 0.75
-  );
-  vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(0,0,0,0.35)");
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
-
-  if (!player.alive) {
-    ctx.save();
-    ctx.fillStyle = "rgba(120, 0, 0, 0.25)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-  }
+  camera.rotation.x = controls.pitch;
+  camera.rotation.y = controls.yaw;
+  const bob = state.ended ? 0 : Math.sin(performance.now() / 220) * (state.moving ? 0.06 : 0);
+  camera.position.set(player.x, EYE_HEIGHT + bob, player.z);
 }
 
 function updateHud() {
-  const { player, phase, prepSecondsLeft } = state;
+  const { player, phase, prepSecondsLeft, grid, fire } = state;
 
   els.health.style.width = `${player.health}%`;
   els.hunger.style.width = `${player.hunger}%`;
@@ -392,18 +147,26 @@ function updateHud() {
 
   if (phase === "prep") {
     els.objective.textContent =
-      "Objective: Gather wood/water/food and scout a route to the blue evacuation zone (top-right).";
+      "Objective: Gather wood/water/food and scout a route to the evacuation beacon.";
     els.phaseTimer.textContent = `Fire risk in: ${Math.max(0, prepSecondsLeft).toFixed(0)}s`;
   } else {
-    els.objective.textContent =
-      "Objective: The wildfire has ignited! Reach the blue evacuation zone alive.";
-    els.phaseTimer.textContent = `Active fires: ${state.fire.activeFireCount()}`;
+    els.objective.textContent = "Objective: The wildfire has ignited! Reach the evacuation beacon alive.";
+    els.phaseTimer.textContent = `Active fires: ${fire.activeFireCount()}`;
   }
 
   els.log.innerHTML = player.messages
     .slice(-6)
     .map((m) => `<div>${escapeHtml(m)}</div>`)
     .join("");
+
+  const target = player.interactTile(controls.yaw, grid);
+  const interactable =
+    !!target &&
+    (target.tile.type === TILE.FOREST ||
+      target.tile.type === TILE.WATER ||
+      target.tile.type === TILE.HOUSE ||
+      fire.isBurning(target.row, target.col));
+  els.crosshair.classList.toggle("active", interactable);
 }
 
 function escapeHtml(str) {
@@ -416,18 +179,65 @@ function loop(now) {
   const dt = Math.min(0.05, (now - state.lastFrameAt) / 1000);
   state.lastFrameAt = now;
 
-  if (!state.ended) {
-    handleInput(now);
-    updateParticles(dt);
+  if (!state.ended && controls.locked) {
+    handleInput(dt);
+    state.moving = state.keysHeld.size > 0;
+  } else {
+    state.moving = false;
   }
-  render(now);
+
+  updateCamera();
+  state.world.update(now);
+  state.fireFx.update(now, dt, state.fire);
+
+  const heat = Math.min(1, state.fire.activeFireCount() / 40);
+  state.world.updateAtmosphere(heat);
+
   updateHud();
+  renderer.render(state.world.scene, camera);
   requestAnimationFrame(loop);
 }
 
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+canvas.addEventListener("click", () => {
+  if (!state.ended) controls.requestLock();
+});
+
+// Headless/automated test hook only: real browsers grant pointer lock from
+// the click handler above. Pointer Lock requires a trusted user gesture
+// that test automation can't produce, so ?debug=1 lets a test harness force
+// the same "locked" state the click handler would normally reach.
+if (new URLSearchParams(window.location.search).has("debug")) {
+  window.__debugForceLock = () => {
+    controls.locked = true;
+    els.lockPrompt.classList.add("hidden");
+  };
+  window.__debugTeleport = (x, z) => {
+    state.player.x = x;
+    state.player.z = z;
+  };
+  window.__debugInspect = () => ({
+    sceneChildCount: state.world.scene.children.length,
+    activeFireTiles: state.fire.activeFireCount(),
+    flameSpriteCount: state.fireFx.flameGroup.children.length,
+    activeEmberCount: state.fireFx.activeEmberCount(),
+    playerPos: { x: state.player.x, z: state.player.z },
+  });
+}
+
+controls.onLockChange = (locked) => {
+  els.lockPrompt.classList.toggle("hidden", locked || state.ended);
+};
+
 window.addEventListener("keydown", (e) => {
-  if (KEY_MOVES[e.key]) {
-    state.keysHeld.add(e.key);
+  const move = MOVE_KEYS[e.key];
+  if (move) {
+    state.keysHeld.add(move);
     return;
   }
   if (e.repeat) return;
@@ -435,22 +245,26 @@ window.addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() === "r") newGame();
     return;
   }
+  if (!controls.locked) return;
   const { player, grid, fire } = state;
   const key = e.key.toLowerCase();
-  if (key === "e") player.gather(grid, fire);
-  else if (key === "b") player.build(grid, fire);
-  else if (key === "f") player.douse(grid, fire);
+  if (key === "e") player.gather(controls.yaw, grid, fire);
+  else if (key === "b") player.build(controls.yaw, grid, fire);
+  else if (key === "f") player.douse(controls.yaw, grid, fire);
   else if (key === "r") newGame();
-  else return;
-  redrawTerrain();
 });
 
 window.addEventListener("keyup", (e) => {
-  state.keysHeld.delete(e.key);
+  const move = MOVE_KEYS[e.key];
+  if (move) state.keysHeld.delete(move);
 });
+
+window.addEventListener("resize", onResize);
 
 els.overlayRestart.addEventListener("click", () => newGame());
 
 newGame();
+onResize();
+els.lockPrompt.classList.remove("hidden");
 setInterval(simulationTick, TICK_MS);
 requestAnimationFrame(loop);

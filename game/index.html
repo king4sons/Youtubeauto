@@ -2,58 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Natural Disasters: Survival 101 — Wildfire Prototype</title>
+  <title>Natural Disasters: Survival 101 — Wildfire Prototype (First Person)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="app">
+  <canvas id="game-canvas"></canvas>
+
+  <div id="crosshair"></div>
+
+  <div id="hud">
     <header id="topbar">
       <h1>Natural Disasters: Survival 101</h1>
-      <span class="subtitle">Vertical Slice — Wildfire Evacuation</span>
+      <span class="subtitle">First-Person Vertical Slice — Wildfire Evacuation</span>
     </header>
 
-    <div id="game-area">
-      <canvas id="game-canvas" width="960" height="720"></canvas>
-
-      <div id="hud">
-        <div class="stat-block">
-          <div class="stat"><span class="label">Health</span><div class="bar"><div id="bar-health" class="fill health"></div></div></div>
-          <div class="stat"><span class="label">Hunger</span><div class="bar"><div id="bar-hunger" class="fill hunger"></div></div></div>
-          <div class="stat"><span class="label">Thirst</span><div class="bar"><div id="bar-thirst" class="fill thirst"></div></div></div>
-          <div class="stat"><span class="label">Stamina</span><div class="bar"><div id="bar-stamina" class="fill stamina"></div></div></div>
-          <div class="stat"><span class="label">Smoke</span><div class="bar"><div id="bar-smoke" class="fill smoke"></div></div></div>
-        </div>
-
-        <div class="inventory-block">
-          <div class="inv-item">🪵 Wood: <span id="inv-wood">0</span></div>
-          <div class="inv-item">💧 Water: <span id="inv-water">0</span></div>
-          <div class="inv-item">🍖 Food: <span id="inv-food">0</span></div>
-        </div>
-
-        <div id="objective">Objective: Loading…</div>
-        <div id="phase-timer"></div>
-
-        <div id="controls-help">
-          <strong>Controls</strong>
-          <div>Move: WASD / Arrows</div>
-          <div>Gather / Loot: E</div>
-          <div>Build Firebreak (5 wood): B</div>
-          <div>Douse Fire (3 water): F</div>
-          <div>Restart: R</div>
-        </div>
-
-        <div id="log"></div>
-      </div>
+    <div class="stat-block">
+      <div class="stat"><span class="label">Health</span><div class="bar"><div id="bar-health" class="fill health"></div></div></div>
+      <div class="stat"><span class="label">Hunger</span><div class="bar"><div id="bar-hunger" class="fill hunger"></div></div></div>
+      <div class="stat"><span class="label">Thirst</span><div class="bar"><div id="bar-thirst" class="fill thirst"></div></div></div>
+      <div class="stat"><span class="label">Stamina</span><div class="bar"><div id="bar-stamina" class="fill stamina"></div></div></div>
+      <div class="stat"><span class="label">Smoke</span><div class="bar"><div id="bar-smoke" class="fill smoke"></div></div></div>
     </div>
 
-    <div id="overlay" class="hidden">
-      <div id="overlay-content">
-        <h2 id="overlay-title"></h2>
-        <p id="overlay-text"></p>
-        <button id="overlay-restart">Restart</button>
-      </div>
+    <div class="inventory-block">
+      <div class="inv-item">🪵 Wood: <span id="inv-wood">0</span></div>
+      <div class="inv-item">💧 Water: <span id="inv-water">0</span></div>
+      <div class="inv-item">🍖 Food: <span id="inv-food">0</span></div>
+    </div>
+
+    <div id="objective">Objective: Loading…</div>
+    <div id="phase-timer"></div>
+
+    <div id="controls-help">
+      <strong>Controls</strong>
+      <div>Look: Mouse</div>
+      <div>Move: WASD</div>
+      <div>Gather / Loot: E</div>
+      <div>Build Firebreak (5 wood): B</div>
+      <div>Douse Fire (3 water): F</div>
+      <div>Restart: R</div>
+    </div>
+
+    <div id="log"></div>
+  </div>
+
+  <div id="lock-prompt" class="hidden">
+    <div id="lock-prompt-content">
+      <h2>Click to enter the wildfire zone</h2>
+      <p>Mouse to look, WASD to move, E to gather, B to build a firebreak, F to douse fire.</p>
+      <p class="small">Press Esc any time to release the mouse.</p>
+    </div>
+  </div>
+
+  <div id="overlay" class="hidden">
+    <div id="overlay-content">
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-text"></p>
+      <button id="overlay-restart">Restart</button>
     </div>
   </div>
 

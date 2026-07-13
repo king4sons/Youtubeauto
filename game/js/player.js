@@ -1,7 +1,5 @@
-import { TILE, IMPASSABLE } from "./config.js";
-import { isInBounds } from "./world.js";
-
-const MOVE_COOLDOWN_MS = 130;
+import { TILE, IMPASSABLE, MOVE_SPEED, PLAYER_RADIUS, INTERACT_RANGE } from "./config.js";
+import { tileToWorldX, tileToWorldZ, worldToCol, worldToRow, isInBounds } from "./world.js";
 
 const HUNGER_DECAY = 0.05;
 const THIRST_DECAY = 0.07;
@@ -19,10 +17,10 @@ const STARVING_DAMAGE = 0.4;
 const SMOKE_SUFFOCATION_DAMAGE = 3;
 
 export class Player {
-  constructor(startRow, startCol) {
-    this.row = startRow;
-    this.col = startCol;
-    this.facing = { dr: -1, dc: 0 };
+  constructor(startRow, startCol, startYaw = 0) {
+    this.x = tileToWorldX(startCol);
+    this.z = tileToWorldZ(startRow);
+    this.yaw = startYaw;
 
     this.health = 100;
     this.hunger = 100;
@@ -35,7 +33,6 @@ export class Player {
     this.food = 1;
 
     this.alive = true;
-    this.lastMoveAt = 0;
     this.messages = [];
   }
 
@@ -44,45 +41,65 @@ export class Player {
     if (this.messages.length > 6) this.messages.shift();
   }
 
-  canMove(now) {
-    return now - this.lastMoveAt >= MOVE_COOLDOWN_MS;
+  currentTile() {
+    return { row: worldToRow(this.z), col: worldToCol(this.x) };
   }
 
-  tryMove(dr, dc, grid, now) {
-    if (!this.alive || !this.canMove(now)) return false;
-    this.facing = { dr, dc };
-
-    // Try the full (possibly diagonal) step first; if blocked by a map
-    // edge or obstacle on one axis, slide along the other axis instead
-    // of refusing to move at all (e.g. hugging the top map border).
-    const candidates =
-      dr !== 0 && dc !== 0 ? [[dr, dc], [0, dc], [dr, 0]] : [[dr, dc]];
-
-    for (const [stepR, stepC] of candidates) {
-      if (stepR === 0 && stepC === 0) continue;
-      const nr = this.row + stepR;
-      const nc = this.col + stepC;
-      if (!isInBounds(nr, nc)) continue;
-      if (IMPASSABLE.has(grid[nr][nc].type)) continue;
-      this.row = nr;
-      this.col = nc;
-      this.lastMoveAt = now;
-      return true;
+  isPassable(x, z, grid) {
+    const r = PLAYER_RADIUS;
+    const corners = [
+      [x - r, z - r],
+      [x + r, z - r],
+      [x - r, z + r],
+      [x + r, z + r],
+    ];
+    for (const [px, pz] of corners) {
+      const row = worldToRow(pz);
+      const col = worldToCol(px);
+      if (!isInBounds(row, col)) return false;
+      if (IMPASSABLE.has(grid[row][col].type)) return false;
     }
-    return false;
+    return true;
   }
 
-  facingTile(grid) {
-    const r = this.row + this.facing.dr;
-    const c = this.col + this.facing.dc;
-    if (!isInBounds(r, c)) return null;
-    return { r, c, tile: grid[r][c] };
+  // forwardInput/strafeInput in [-1, 1]; movement direction is relative to
+  // the given camera yaw. Axes are resolved independently so the player
+  // slides along a wall instead of stopping dead when moving diagonally
+  // into it.
+  move(forwardInput, strafeInput, yaw, dt, grid) {
+    if (!this.alive) return;
+    if (forwardInput === 0 && strafeInput === 0) return;
+
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    const rx = Math.cos(yaw);
+    const rz = -Math.sin(yaw);
+
+    let dx = fx * forwardInput + rx * strafeInput;
+    let dz = fz * forwardInput + rz * strafeInput;
+    const len = Math.hypot(dx, dz) || 1;
+    dx = (dx / len) * MOVE_SPEED * dt;
+    dz = (dz / len) * MOVE_SPEED * dt;
+
+    if (this.isPassable(this.x + dx, this.z, grid)) this.x += dx;
+    if (this.isPassable(this.x, this.z + dz, grid)) this.z += dz;
   }
 
-  gather(grid, fire) {
-    const target = this.facingTile(grid);
+  interactTile(yaw, grid) {
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    const tx = this.x + fx * INTERACT_RANGE;
+    const tz = this.z + fz * INTERACT_RANGE;
+    const row = worldToRow(tz);
+    const col = worldToCol(tx);
+    if (!isInBounds(row, col)) return null;
+    return { row, col, tile: grid[row][col] };
+  }
+
+  gather(yaw, grid, fire) {
+    const target = this.interactTile(yaw, grid);
     if (!target) return;
-    const { r, c, tile } = target;
+    const { row, col, tile } = target;
 
     if (tile.type === TILE.FOREST) {
       if (this.stamina < GATHER_STAMINA_COST) {
@@ -105,23 +122,23 @@ export class Player {
       this.food += 2;
       this.wood += 1;
       this.log("Looted supplies: +2 food, +1 wood.");
-    } else if (fire.isBurning(r, c) || (tile.type === TILE.ASH && tile.ash > 0)) {
+    } else if (fire.isBurning(row, col) || (tile.type === TILE.ASH && tile.ash > 0)) {
       this.log("Too hot to gather there!");
     } else {
       this.log("Nothing to gather here.");
     }
   }
 
-  build(grid, fire) {
-    const target = this.facingTile(grid);
+  build(yaw, grid, fire) {
+    const target = this.interactTile(yaw, grid);
     if (!target) return;
-    const { r, c, tile } = target;
+    const { row, col, tile } = target;
 
     if (this.wood < BUILD_WOOD_COST) {
       this.log("Not enough wood (need 5).");
       return;
     }
-    if (fire.isBurning(r, c)) {
+    if (fire.isBurning(row, col)) {
       this.log("Can't build on burning ground.");
       return;
     }
@@ -134,21 +151,21 @@ export class Player {
     this.log("Cleared a firebreak.");
   }
 
-  douse(grid, fire) {
-    const target = this.facingTile(grid);
+  douse(yaw, grid, fire) {
+    const target = this.interactTile(yaw, grid);
     if (!target) return;
-    const { r, c } = target;
+    const { row, col } = target;
 
     if (this.water < DOUSE_WATER_COST) {
       this.log("Not enough water (need 3).");
       return;
     }
-    if (!fire.isBurning(r, c)) {
+    if (!fire.isBurning(row, col)) {
       this.log("No fire there to douse.");
       return;
     }
     this.water -= DOUSE_WATER_COST;
-    fire.extinguish(r, c);
+    fire.extinguish(row, col);
     this.log("Doused the flames.");
   }
 
@@ -159,13 +176,14 @@ export class Player {
     this.thirst = clamp(this.thirst - THIRST_DECAY, 0, 100);
     this.stamina = clamp(this.stamina + STAMINA_REGEN, 0, 100);
 
-    const nearSmoke = fire.isSmokeNear(this.row, this.col);
+    const { row, col } = this.currentTile();
+    const nearSmoke = fire.isSmokeNear(row, col);
     this.smoke = clamp(this.smoke + (nearSmoke ? SMOKE_RISE : -SMOKE_FALL), 0, 100);
 
     let damage = 0;
-    if (fire.isBurning(this.row, this.col)) {
+    if (fire.isBurning(row, col)) {
       damage += FIRE_DAMAGE_PER_TICK;
-    } else if (grid[this.row][this.col].type === TILE.ASH && grid[this.row][this.col].ash > 0) {
+    } else if (grid[row][col].type === TILE.ASH && grid[row][col].ash > 0) {
       damage += ASH_DAMAGE_PER_TICK;
     }
     if (this.hunger <= 0 || this.thirst <= 0) {
